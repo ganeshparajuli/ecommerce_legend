@@ -1,0 +1,24 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home3/marsaic2/joy.marsaic.com"
+PassengerBaseURI "/"
+PassengerNodejs "/home3/marsaic2/nodevenv/joy.marsaic.com/18/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# php -- BEGIN cPanel-generated handler, do not edit
+# This domain inherits the “PHP” package.
+# php -- END cPanel-generated handler, do not edit
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+SetEnv DB_HOST 95.217.203.22
+SetEnv DB_NAME marsaic2_joystore
+SetEnv DB_USER marsaic2_adminjoystore
+SetEnv DB_PORT 3306
+SetEnv NODE_ENV production
+SetEnv DB_PASSWORD Admin@JoyStore
+SetEnv PORT 7999
+SetEnv FRONTEND https://joy.marsaic.com/
+SetEnv JWT_EXPIRE 86400
+SetEnv JWT_SECRET_KEY HFDS88Q34WV8354Y87734857VAHN7%25FHGSD4784%24Y&FDSHEERYT@TYUSDFT!YTEYEYWTY
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END
