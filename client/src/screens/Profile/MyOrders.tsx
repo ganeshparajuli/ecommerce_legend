@@ -22,6 +22,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { myOrders } from "../../redux/actions/orderAction"; // Import the order action
 import type { RootState } from "../../redux/store";
 import { ProductImage } from "../../utils/imageHelper";
+import { formatPrice } from "@/utils/formatPrice";
 
 interface Order {
   id: string;
@@ -198,7 +199,9 @@ const MyOrders: React.FC = () => {
               <ArrowLeft className="w-5 h-5 text-black" />
             </button>
             <div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-black">My Orders</h1>
+              <h1 className="text-3xl lg:text-4xl font-bold text-black">
+                My Orders
+              </h1>
               <p className="text-gray-600 text-base lg:text-lg font-medium">
                 {orders.length} orders found
               </p>
@@ -322,9 +325,7 @@ const MyOrders: React.FC = () => {
                         )} shadow-sm`}
                       >
                         {getStatusIcon(order.status)}
-                        <span className="ml-2 capitalize">
-                          {order.status}
-                        </span>
+                        <span className="ml-2 capitalize">{order.status}</span>
                       </span>
                       <span className="text-2xl font-bold text-black">
                         Rs {order.total.toFixed(2)}
@@ -351,7 +352,7 @@ const MyOrders: React.FC = () => {
                             {item.name}
                           </p>
                           <p className="text-xs text-gray-600 font-medium">
-                            Qty: {item.quantity} × Rs {item.price}
+                            Qty: {item.quantity} × {formatPrice(item.price)}
                           </p>
                         </div>
                       </div>
@@ -362,11 +363,17 @@ const MyOrders: React.FC = () => {
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center pt-6 border-t border-gray-100 space-y-4 lg:space-y-0">
                     <div>
                       <p className="text-sm text-gray-600 font-medium mb-1">
-                        <span className="text-black font-bold">Shipping to:</span> {order.shippingAddress}
+                        <span className="text-black font-bold">
+                          Shipping to:
+                        </span>{" "}
+                        {order.shippingAddress}
                       </p>
                       {order.trackingNumber && (
                         <p className="text-sm text-gray-600 font-medium">
-                          <span className="text-black font-bold">Tracking:</span> {order.trackingNumber}
+                          <span className="text-black font-bold">
+                            Tracking:
+                          </span>{" "}
+                          {order.trackingNumber}
                         </p>
                       )}
                     </div>

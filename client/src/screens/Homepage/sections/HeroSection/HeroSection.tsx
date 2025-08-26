@@ -19,6 +19,7 @@ import {
   removeFromWishlistByProductId,
 } from "../../../../redux/actions/wishlistActions";
 import toast, { Toaster } from "react-hot-toast";
+import { formatPrice } from "@/utils/formatPrice";
 
 const isUserLoggedIn = (): boolean => {
   const token = localStorage.getItem("token");
@@ -330,7 +331,7 @@ export const HeroSection: React.FC = () => {
 
   return (
     <div
-      className="relative h-[500px] md:h-[600px] lg:h-[70vh] w-full bg-gradient-to-br mt-12 from-gray-50 to-gray-100 overflow-hidden"
+      className="relative min-h-[500px] min-md:h-[600px] lg:min-h-[70vh] w-full bg-gradient-to-br mt-12 from-gray-50 to-gray-100 overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -387,7 +388,7 @@ export const HeroSection: React.FC = () => {
               </div>
 
               {/* Product Info - Right Side */}
-              <div className="order-1 lg:order-2 text-center lg:text-left lg:pl-8 lg:pr-6">
+              <div className="order-1 lg:order-2 text-center lg:text-left lg:pl-8 lg:pr-6 max-lg:pt-14">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -418,20 +419,21 @@ export const HeroSection: React.FC = () => {
                   {/* Price Section */}
                   <div className="flex items-center justify-center lg:justify-start space-x-4 mb-8 flex-wrap">
                     <span className="text-2xl md:text-3xl lg:text-4xl font-bold text-red-600">
-                      ₨{currentProduct.finalPrice.toLocaleString()}
+                      {formatPrice(currentProduct.finalPrice, "₨")}
                     </span>
                     {currentProduct.actualPrice !==
                       currentProduct.finalPrice && (
                       <>
                         <span className="text-lg md:text-xl text-gray-500 line-through">
-                          ₨{currentProduct.actualPrice.toLocaleString()}
+                          {formatPrice(currentProduct.actualPrice, "₨")}
                         </span>
                         <span className="bg-red-600 text-white px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wide">
-                          SAVE ₨
-                          {(
+                          SAVE{" "}
+                          {formatPrice(
                             currentProduct.actualPrice -
-                            currentProduct.finalPrice
-                          ).toLocaleString()}
+                              currentProduct.finalPrice,
+                            "₨"
+                          )}
                         </span>
                       </>
                     )}

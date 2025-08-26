@@ -53,6 +53,7 @@ import {
   removeFromWishlist,
 } from "../../redux/actions/wishlistActions";
 import FooterSection from "../Homepage/sections/FooterSection/FooterSection";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
 const isUserLoggedIn = (): boolean => {
@@ -80,15 +81,15 @@ interface Product {
 }
 
 // Helper functions
-const formatPrice = (price: any): string => {
-  if (price === null || price === undefined) return "0.00";
-  try {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return numPrice.toFixed(2);
-  } catch (e) {
-    return "0.00";
-  }
-};
+// const formatPrice = (price: any): string => {
+//   if (price === null || price === undefined) return "0.00";
+//   try {
+//     const numPrice = typeof price === "string" ? parseFloat(price) : price;
+//     return numPrice.toFixed(2);
+//   } catch (e) {
+//     return "0.00";
+//   }
+// };
 
 const getPriceAsNumber = (price: any): number => {
   if (price === null || price === undefined) return 0;
@@ -112,7 +113,9 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const dispatch = useDispatch();
 
-  const featuredProducts = products.filter(p => p.category === "featured" || Math.random() > 0.7).slice(0, 5);
+  const featuredProducts = products
+    .filter((p) => p.category === "featured" || Math.random() > 0.7)
+    .slice(0, 5);
 
   const toggleWishlist = (productId: string) => {
     if (!isUserLoggedIn()) {
@@ -143,13 +146,15 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + featuredProducts.length) % featuredProducts.length);
+    setCurrentSlide(
+      (prev) => (prev - 1 + featuredProducts.length) % featuredProducts.length
+    );
   };
 
   useEffect(() => {
     if (featuredProducts.length > 1) {
-      const interval = setInterval(nextSlide, 4000);
-      return () => clearInterval(interval);
+      // const interval = setInterval(nextSlide, 4000);
+      // return () => clearInterval(interval);
     }
   }, [featuredProducts.length]);
 
@@ -157,7 +162,7 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
 
   return (
     <div className="relative bg-gradient-to-r from-red-500 via-red-600 to-red-700 rounded-2xl overflow-hidden mb-6">
-      <div className="relative h-48 sm:h-64 md:h-80">
+      <div className="relative h-48 sm:h-64 md:h-80 max-md:h-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
@@ -172,22 +177,29 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
               <div className="flex flex-col justify-center p-6 md:p-8 text-white">
                 <div className="flex items-center mb-2">
                   <Flame className="w-5 h-5 mr-2" />
-                  <span className="text-sm font-semibold">FEATURED PRODUCT</span>
+                  <span className="text-sm font-semibold">
+                    FEATURED PRODUCT
+                  </span>
                 </div>
                 <h2 className="text-2xl md:text-4xl font-bold mb-3">
                   {featuredProducts[currentSlide]?.name}
                 </h2>
                 <p className="text-sm md:text-base opacity-90 mb-4 line-clamp-2">
-                  {featuredProducts[currentSlide]?.description || "Premium quality product with exceptional features and outstanding performance."}
+                  {featuredProducts[currentSlide]?.description ||
+                    "Premium quality product with exceptional features and outstanding performance."}
                 </p>
                 <div className="flex items-center space-x-4 mb-4">
                   <span className="text-2xl md:text-3xl font-bold">
-                    Rs {formatPrice(featuredProducts[currentSlide]?.finalPrice)}
+                    {formatPrice(featuredProducts[currentSlide]?.finalPrice)}
                   </span>
-                  {getPriceAsNumber(featuredProducts[currentSlide]?.actualPrice) > 
-                   getPriceAsNumber(featuredProducts[currentSlide]?.finalPrice) && (
+                  {getPriceAsNumber(
+                    featuredProducts[currentSlide]?.actualPrice
+                  ) >
+                    getPriceAsNumber(
+                      featuredProducts[currentSlide]?.finalPrice
+                    ) && (
                     <span className="text-lg text-red-200 line-through">
-                      Rs {formatPrice(featuredProducts[currentSlide]?.actualPrice)}
+                      {formatPrice(featuredProducts[currentSlide]?.actualPrice)}
                     </span>
                   )}
                 </div>
@@ -199,22 +211,32 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
                     View Product
                   </Link>
                   <button
-                    onClick={() => toggleWishlist(featuredProducts[currentSlide]?.id)}
+                    onClick={() =>
+                      toggleWishlist(featuredProducts[currentSlide]?.id)
+                    }
                     className="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors"
                   >
-                    <Heart className={`w-5 h-5 ${wishlist.includes(featuredProducts[currentSlide]?.id) ? 'fill-current' : ''}`} />
+                    <Heart
+                      className={`w-5 h-5 ${
+                        wishlist.includes(featuredProducts[currentSlide]?.id)
+                          ? "fill-current"
+                          : ""
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
 
               {/* Image Side */}
-              <div className="relative hidden md:flex items-center justify-center p-6">
+              <div className="relative hidden md:flex items-center justify-center  md:w-[290px] md:h-[290px] p-4">
                 <ProductImage
-                  src={Array.isArray(featuredProducts[currentSlide]?.image) 
-                    ? featuredProducts[currentSlide]?.image[0] 
-                    : featuredProducts[currentSlide]?.image}
+                  src={
+                    Array.isArray(featuredProducts[currentSlide]?.image)
+                      ? featuredProducts[currentSlide]?.image[0]
+                      : featuredProducts[currentSlide]?.image
+                  }
                   alt={featuredProducts[currentSlide]?.name}
-                  className="w-full h-full max-w-sm object-contain"
+                  className="max-w-full max-h-full object-contain"
                   fallbackUrl="/placeholder.jpg"
                 />
               </div>
@@ -248,7 +270,7 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
                 key={index}
                 onClick={() => setCurrentSlide(index)}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentSlide ? 'bg-white' : 'bg-white/50'
+                  index === currentSlide ? "bg-white" : "bg-white/50"
                 }`}
               />
             ))}
@@ -268,7 +290,9 @@ const JoyStoreProducts = () => {
   const searchQuery = searchParams.get("q") || "";
   const category = searchParams.get("category") || categorySlug || "";
   const brand = searchParams.get("brand") || "";
-  const [addingToCart, setAddingToCart] = useState<{ [key: string]: boolean }>({});
+  const [addingToCart, setAddingToCart] = useState<{ [key: string]: boolean }>(
+    {}
+  );
   const [wishlist, setWishlist] = useState<string[]>([]);
 
   // UI States
@@ -383,12 +407,13 @@ const JoyStoreProducts = () => {
     // Brand filter
     if (brand) {
       filtered = filtered.filter((product) => {
-        const productBrand = product.brand?.toLowerCase() || '';
+        const productBrand = product.brand?.toLowerCase() || "";
         const urlBrand = brand.toLowerCase();
-        
+
         const exactMatch = productBrand === urlBrand;
-        const containsMatch = productBrand.includes(urlBrand) || urlBrand.includes(productBrand);
-        
+        const containsMatch =
+          productBrand.includes(urlBrand) || urlBrand.includes(productBrand);
+
         return exactMatch || containsMatch;
       });
     }
@@ -581,7 +606,7 @@ const JoyStoreProducts = () => {
       />
 
       {/* Main Content */}
-      <div className="pt-4 px-4 lg:px-8 relative z-10 mb-20">
+      <div className="pt-4 px-4 lg:px-8 relative z-10 mb-20 max-lg:mt-16 max-lg:pt-0">
         <div className="max-w-7xl mx-auto">
           {/* Breadcrumb and Back Button */}
           <div className="flex justify-between items-center mb-4">
@@ -876,7 +901,7 @@ const JoyStoreProducts = () => {
                                 : product.image
                             }
                             alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
                             fallbackUrl="/placeholder.jpg"
                           />
                         </Link>
@@ -950,7 +975,6 @@ const JoyStoreProducts = () => {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-2">
                             <span className="text-lg font-bold text-red-600">
-                              Rs{" "}
                               {formatPrice(
                                 product.finalPrice || product.actualPrice
                               )}
@@ -958,7 +982,7 @@ const JoyStoreProducts = () => {
                             {getPriceAsNumber(product.actualPrice) >
                               getPriceAsNumber(product.finalPrice) && (
                               <span className="text-gray-400 line-through text-sm">
-                                Rs {formatPrice(product.actualPrice)}
+                                {formatPrice(product.actualPrice)}
                               </span>
                             )}
                           </div>

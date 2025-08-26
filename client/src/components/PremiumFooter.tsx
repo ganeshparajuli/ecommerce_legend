@@ -26,16 +26,22 @@ const CompactFooter: React.FC = () => {
 
   // Get store settings from Redux
   const { storeSettings } = useSelector((state: RootState) => state.settings);
-  
+
   // Get categories from Redux
-  const categories = useSelector((state: RootState) => state.category.categories);
-  const categoriesLoading = useSelector((state: RootState) => state.category.loading);
-  const categoriesError = useSelector((state: RootState) => state.category.error);
+  const categories = useSelector(
+    (state: RootState) => state.category.categories
+  );
+  const categoriesLoading = useSelector(
+    (state: RootState) => state.category.loading
+  );
+  const categoriesError = useSelector(
+    (state: RootState) => state.category.error
+  );
 
   // Load store settings and categories on component mount
   useEffect(() => {
     dispatch(getStoreSettings());
-    
+
     // Only fetch categories if we don't have them and aren't already loading
     if (!categories?.length && !categoriesLoading) {
       dispatch(getAllCategories());
@@ -163,29 +169,32 @@ const CompactFooter: React.FC = () => {
   };
 
   // ✅ Process categories from Redux with proper fallbacks
-  const processedCategories = Array.isArray(categories) && categories.length > 0
-    ? categories.slice(0, 8).map((category: any) => ({
-        name: category.name,
-        path: category.link || `/products/category/${
-          category.slug || category.name.toLowerCase().replace(/\s+/g, "-")
-        }`,
-      }))
-    : [
-        // Fallback categories if backend categories fail to load
-        { name: "SmartPhones", path: "/products/smartphones" },
-        { name: "iPads", path: "/products/ipads" },
-        { name: "SmartWatches", path: "/products/smartwatches" },
-        { name: "Apple Accessories", path: "/products/apple-accessories" },
-        { name: "HeadPhones", path: "/products/headphones" },
-        { name: "Cover & Cases", path: "/products/covers-cases" },
-        { name: "Chargers", path: "/products/chargers" },
-        { name: "Cables", path: "/products/cables" },
-      ];
+  const processedCategories =
+    Array.isArray(categories) && categories.length > 0
+      ? categories.slice(0, 8).map((category: any) => ({
+          name: category.name,
+          path:
+            category.link ||
+            `/products/category/${
+              category.slug || category.name.toLowerCase().replace(/\s+/g, "-")
+            }`,
+        }))
+      : [
+          // Fallback categories if backend categories fail to load
+          { name: "SmartPhones", path: "/products/smartphones" },
+          { name: "iPads", path: "/products/ipads" },
+          { name: "SmartWatches", path: "/products/smartwatches" },
+          { name: "Apple Accessories", path: "/products/apple-accessories" },
+          { name: "HeadPhones", path: "/products/headphones" },
+          { name: "Cover & Cases", path: "/products/covers-cases" },
+          { name: "Chargers", path: "/products/chargers" },
+          { name: "Cables", path: "/products/cables" },
+        ];
 
   return (
     <footer ref={footerRef} className="bg-black text-white">
       {/* Logo Section - Using Footer Logo ✅ - Made Broader */}
-      <div className="bg-white  py-6">
+      {/* <div className="bg-white  py-6">
         <div className="max-w-full mx-auto px-6 sm:px-8 lg:px-12">
           <div
             className={`w-full max-w-[400px] h-[80px] mx-auto flex items-center justify-center transition-all duration-1000 transform ${
@@ -194,14 +203,10 @@ const CompactFooter: React.FC = () => {
                 : "opacity-0 translate-y-10"
             }`}
           >
-            {/* <StoreImage
-              src={displayStoreSettings?.footerLogo}
-              alt={`${displayStoreSettings.storeName} Logo`}
-              className="max-h-full max-w-full object-contain"
-            /> */}
+       
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Footer Content - Broader and More Spacious */}
       <div className="max-w-full px-6 sm:px-8 lg:px-12 py-12">
@@ -224,11 +229,15 @@ const CompactFooter: React.FC = () => {
             </h3>
 
             <div className="space-y-4 text-white/80 text-base">
-              <p className="text-lg font-medium text-white">Apple Authorized Reseller</p>
+              <p className="text-lg font-medium text-white">
+                Apple Authorized Reseller
+              </p>
               <div className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-white/60 mt-1 flex-shrink-0" />
                 <div className="leading-relaxed">
-                  {addressParts.line1 && <p className="mb-1">{addressParts.line1}</p>}
+                  {addressParts.line1 && (
+                    <p className="mb-1">{addressParts.line1}</p>
+                  )}
                   {addressParts.line2 && <p>{addressParts.line2}</p>}
                 </div>
               </div>
@@ -259,7 +268,9 @@ const CompactFooter: React.FC = () => {
 
             {/* Social Media - Expanded */}
             <div className="mt-8">
-              <h4 className="text-white text-lg font-semibold mb-4">Follow Us</h4>
+              <h4 className="text-white text-lg font-semibold mb-4">
+                Follow Us
+              </h4>
               <div className="flex space-x-4">
                 <a
                   href="https://www.instagram.com/joy_store_nepal?igsh=MW9uMTVxeGJlam9mZw=="
@@ -385,10 +396,14 @@ const CompactFooter: React.FC = () => {
               ))}
             </ul>
             {categoriesLoading && (
-              <p className="text-white/50 text-sm mt-3">Loading categories...</p>
+              <p className="text-white/50 text-sm mt-3">
+                Loading categories...
+              </p>
             )}
             {categoriesError && (
-              <p className="text-red-400 text-sm mt-3">Error loading categories</p>
+              <p className="text-red-400 text-sm mt-3">
+                Error loading categories
+              </p>
             )}
           </div>
         </div>
@@ -404,7 +419,9 @@ const CompactFooter: React.FC = () => {
               Apple Authorized Reseller
             </p>
             <div className="space-y-3 text-white/80 text-base">
-              <p className="leading-relaxed">{displayStoreSettings.storeAddress}</p>
+              <p className="leading-relaxed">
+                {displayStoreSettings.storeAddress}
+              </p>
               <p className="flex items-center justify-center">
                 <Phone className="h-4 w-4 mr-2" />
                 {formatPhoneForDisplay(displayStoreSettings.storePhone)}
@@ -422,7 +439,9 @@ const CompactFooter: React.FC = () => {
               className="flex items-center justify-between w-full py-3"
               onClick={() => toggleMobileMenu("service")}
             >
-              <h3 className="text-white text-lg font-semibold">Customer Service</h3>
+              <h3 className="text-white text-lg font-semibold">
+                Customer Service
+              </h3>
               <ChevronRight
                 className={`h-5 w-5 transition-transform duration-300 ${
                   mobileMenuOpen === "service" ? "rotate-90" : ""
@@ -456,7 +475,9 @@ const CompactFooter: React.FC = () => {
               className="flex items-center justify-between w-full py-3"
               onClick={() => toggleMobileMenu("account")}
             >
-              <h3 className="text-white text-lg font-semibold">Account & Legal</h3>
+              <h3 className="text-white text-lg font-semibold">
+                Account & Legal
+              </h3>
               <ChevronRight
                 className={`h-5 w-5 transition-transform duration-300 ${
                   mobileMenuOpen === "account" ? "rotate-90" : ""
@@ -490,7 +511,9 @@ const CompactFooter: React.FC = () => {
               className="flex items-center justify-between w-full py-3"
               onClick={() => toggleMobileMenu("categories")}
             >
-              <h3 className="text-white text-lg font-semibold">Product Categories</h3>
+              <h3 className="text-white text-lg font-semibold">
+                Product Categories
+              </h3>
               <ChevronRight
                 className={`h-5 w-5 transition-transform duration-300 ${
                   mobileMenuOpen === "categories" ? "rotate-90" : ""
@@ -512,7 +535,9 @@ const CompactFooter: React.FC = () => {
                   <p className="text-white/50 text-sm">Loading categories...</p>
                 )}
                 {categoriesError && (
-                  <p className="text-red-400 text-sm">Error loading categories</p>
+                  <p className="text-red-400 text-sm">
+                    Error loading categories
+                  </p>
                 )}
               </div>
             )}
@@ -561,11 +586,15 @@ const CompactFooter: React.FC = () => {
         >
           <div className="text-center text-white/50 text-base space-y-3">
             <p className="text-lg">
-              © {new Date().getFullYear()} {displayStoreSettings.storeName} | All Rights Reserved
+              © {new Date().getFullYear()} {displayStoreSettings.storeName} |
+              All Rights Reserved
             </p>
             <p>
               Powered By{" "}
-              <Link to="https://nyxis.tech" className="text-white/70 font-semibold hover:text-white transition-colors">
+              <Link
+                to="https://nyxis.tech"
+                className="text-white/70 font-semibold hover:text-white transition-colors"
+              >
                 Nyxis Tech
               </Link>
             </p>

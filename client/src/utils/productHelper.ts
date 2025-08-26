@@ -1,5 +1,5 @@
 // src/utils/productHelpers.ts
-import type { Product } from '../redux/constants/productConstants';
+import type { Product } from "../redux/constants/productConstants";
 
 /**
  * Parse product images from JSON string to array
@@ -10,7 +10,7 @@ export const parseProductImages = (imageData: string | null): string[] => {
     const parsed = JSON.parse(imageData);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error('Error parsing product images:', error);
+    console.error("Error parsing product images:", error);
     return [];
   }
 };
@@ -23,16 +23,16 @@ export const parseJSONField = <T>(
   defaultValue: T
 ): T => {
   if (field === null || field === undefined) return defaultValue;
-  
-  if (typeof field === 'string') {
+
+  if (typeof field === "string") {
     try {
       return JSON.parse(field);
     } catch (error) {
-      console.error('Error parsing JSON field:', error);
+      console.error("Error parsing JSON field:", error);
       return defaultValue;
     }
   }
-  
+
   return field;
 };
 
@@ -64,10 +64,10 @@ export const calculateDiscountPercentage = (
  * Format price for display
  */
 export const formatPrice = (price: number | null): string => {
-  if (price === null || price === undefined) return 'N/A';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  if (price === null || price === undefined) return "N/A";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(price);
 };
 
@@ -83,9 +83,9 @@ export const getDisplayPrice = (product: Product): number => {
  */
 export const isProductOnSale = (product: Product): boolean => {
   return !!(
-    product.discountPrice && 
-    product.discountPrice > 0 && 
-    product.actualPrice && 
+    product.discountPrice &&
+    product.discountPrice > 0 &&
+    product.actualPrice &&
     product.actualPrice > product.finalPrice
   );
 };
@@ -93,16 +93,18 @@ export const isProductOnSale = (product: Product): boolean => {
 /**
  * Get stock status message
  */
-export const getStockStatus = (quantity: number): {
+export const getStockStatus = (
+  quantity: number
+): {
   message: string;
-  status: 'in-stock' | 'low-stock' | 'out-of-stock';
+  status: "in-stock" | "low-stock" | "out-of-stock";
 } => {
   if (quantity === 0) {
-    return { message: 'Out of Stock', status: 'out-of-stock' };
+    return { message: "Out of Stock", status: "out-of-stock" };
   } else if (quantity <= 5) {
-    return { message: `Only ${quantity} left in stock`, status: 'low-stock' };
+    return { message: `Only ${quantity} left in stock`, status: "low-stock" };
   } else {
-    return { message: 'In Stock', status: 'in-stock' };
+    return { message: "In Stock", status: "in-stock" };
   }
 };
 
@@ -117,9 +119,9 @@ export const prepareProductFormData = (
 
   // Add basic fields
   Object.entries(productData).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && key !== 'images') {
+    if (value !== undefined && value !== null && key !== "images") {
       // JSON stringify array/object fields
-      if (key === 'keyFeatures' || key === 'specifications' || key === 'tags') {
+      if (key === "keyFeatures" || key === "specifications" || key === "tags") {
         formData.append(key, JSON.stringify(value));
       } else {
         formData.append(key, String(value));
@@ -129,7 +131,7 @@ export const prepareProductFormData = (
 
   // Add image files
   if (imageFiles && imageFiles.length > 0) {
-    imageFiles.forEach(file => formData.append('images', file));
+    imageFiles.forEach((file) => formData.append("images", file));
   }
 
   return formData;
@@ -138,27 +140,29 @@ export const prepareProductFormData = (
 /**
  * Validate product data before submission
  */
-export const validateProductData = (productData: Partial<Product>): {
+export const validateProductData = (
+  productData: Partial<Product>
+): {
   isValid: boolean;
   errors: Record<string, string>;
 } => {
   const errors: Record<string, string> = {};
 
-  if (!productData.name || productData.name.trim() === '') {
-    errors.name = 'Product name is required';
+  if (!productData.name || productData.name.trim() === "") {
+    errors.name = "Product name is required";
   }
 
   if (!productData.finalPrice && !productData.actualPrice) {
-    errors.price = 'Product price is required';
+    errors.price = "Product price is required";
   }
 
   const price = productData.finalPrice || productData.actualPrice || 0;
   if (price <= 0) {
-    errors.price = 'Price must be greater than 0';
+    errors.price = "Price must be greater than 0";
   }
 
   if (productData.quantity !== undefined && productData.quantity < 0) {
-    errors.quantity = 'Quantity cannot be negative';
+    errors.quantity = "Quantity cannot be negative";
   }
 
   return {
@@ -172,28 +176,28 @@ export const validateProductData = (productData: Partial<Product>): {
  */
 export const sortProducts = (
   products: Product[],
-  sortBy: 'price' | 'name' | 'rating' | 'newest',
-  order: 'asc' | 'desc' = 'asc'
+  sortBy: "price" | "name" | "rating" | "newest",
+  order: "asc" | "desc" = "asc"
 ): Product[] => {
   const sorted = [...products].sort((a, b) => {
     switch (sortBy) {
-      case 'price':
+      case "price":
         const priceA = getDisplayPrice(a);
         const priceB = getDisplayPrice(b);
-        return order === 'asc' ? priceA - priceB : priceB - priceA;
-      
-      case 'name':
+        return order === "asc" ? priceA - priceB : priceB - priceA;
+
+      case "name":
         const nameComparison = a.name.localeCompare(b.name);
-        return order === 'asc' ? nameComparison : -nameComparison;
-      
-      case 'rating':
-        return order === 'asc' ? a.rating - b.rating : b.rating - a.rating;
-      
-      case 'newest':
+        return order === "asc" ? nameComparison : -nameComparison;
+
+      case "rating":
+        return order === "asc" ? a.rating - b.rating : b.rating - a.rating;
+
+      case "newest":
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
-        return order === 'asc' ? dateA - dateB : dateB - dateA;
-      
+        return order === "asc" ? dateA - dateB : dateB - dateA;
+
       default:
         return 0;
     }
@@ -217,16 +221,16 @@ export const filterProducts = (
     color?: string;
   }
 ): Product[] => {
-  return products.filter(product => {
+  return products.filter((product) => {
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         product.name.toLowerCase().includes(searchLower) ||
         product.description?.toLowerCase().includes(searchLower) ||
         product.brand?.toLowerCase().includes(searchLower) ||
         product.sku.toLowerCase().includes(searchLower);
-      
+
       if (!matchesSearch) return false;
     }
 

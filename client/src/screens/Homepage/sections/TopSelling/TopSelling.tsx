@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getAllProducts } from "../../../../redux/actions/productAction";
 import type { RootState } from "../../../../redux/store";
 import { ProductImage } from "../../../../utils/imageHelper";
+import { formatPrice } from "@/utils/formatPrice";
 
 interface Product {
   id: string;
@@ -214,11 +215,11 @@ export const TopSelling = () => {
                         <div className="flex flex-col">
                           {product.actualPrice !== product.finalPrice && (
                             <span className="text-sm text-gray-500 line-through">
-                              Rs{product.actualPrice.toLocaleString()}
+                              {formatPrice(product.actualPrice)}
                             </span>
                           )}
                           <span className="text-lg font-bold text-black">
-                            Rs{product.finalPrice.toLocaleString()}
+                            {formatPrice(product.finalPrice)}
                           </span>
                         </div>
                       </div>
@@ -242,9 +243,9 @@ export const TopSelling = () => {
         </div>
 
         {/* Bottom section with additional product showcases */}
-          <h3 className="flex flex-col text-2xl font-bold text-gray-800 mt-6">
-            Recommended Products
-          </h3>
+        <h3 className="flex flex-col text-2xl font-bold text-gray-800 mt-6">
+          Recommended Products
+        </h3>
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
           {bestSelling.slice(0, 4).map((product, index) => (
             <a
@@ -280,11 +281,11 @@ export const TopSelling = () => {
                 <div className="text-center">
                   {product.actualPrice !== product.finalPrice && (
                     <span className="text-sm text-gray-500 line-through block">
-                      Rs{product.actualPrice.toLocaleString()}
+                      {formatPrice(product.actualPrice)}
                     </span>
                   )}
                   <span className="text-lg font-bold text-black">
-                    Rs{product.finalPrice.toLocaleString()}
+                    {formatPrice(product.finalPrice)}
                   </span>
                 </div>
               </div>

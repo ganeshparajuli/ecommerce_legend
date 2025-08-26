@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { ProductImage } from "../../utils/imageHelper";
 import { PromoCodeInput } from "./PromoCodeInput";
 import type { RootState } from "../../redux/store";
+import { formatPrice } from "@/utils/formatPrice";
 
 interface OrderSummaryProps {
   cartItems: any[];
@@ -186,7 +187,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                     <p className="text-xs text-gray-500">Qty: {itemQuantity}</p>
                     <p className="text-sm font-medium text-gray-900">
                       {itemPrice > 0 ? (
-                        `Rs. ${itemTotal.toFixed(2)}`
+                        `${formatPrice(itemTotal.toFixed(2))}`
                       ) : (
                         <span className="text-gray-400 flex items-center">
                           <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -222,7 +223,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                 Calculating...
               </span>
             ) : (
-              `Rs. ${displaySubtotal.toFixed(2)}`
+              `${formatPrice(displaySubtotal.toFixed(2))}`
             )}
           </span>
         </div>
@@ -231,7 +232,9 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
         {isPromoApplied && discount > 0 && (
           <div className="flex justify-between py-1 text-green-600">
             <span className="font-medium">Promo Discount ({promoCode})</span>
-            <span className="font-semibold">-Rs. {discount.toFixed(2)}</span>
+            <span className="font-semibold">
+              - {formatPrice(discount.toFixed(2))}
+            </span>
           </div>
         )}
 
@@ -257,7 +260,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                   Calculating...
                 </span>
               ) : (
-                `Rs. ${displayFinalTotal.toFixed(2)}`
+                ` ${formatPrice(displayFinalTotal.toFixed(2))}`
               )}
             </span>
           </div>

@@ -23,6 +23,7 @@ import {
 } from "../../redux/actions/wishlistActions";
 import { ProductImage, getImageUrl } from "../../utils/imageHelper";
 import type { RootState } from "../../redux/store";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
 const isUserLoggedIn = (): boolean => {
@@ -251,15 +252,15 @@ const ProductDetailPage = () => {
     ));
   };
 
-  const formatPrice = (price: any): string => {
-    if (price === null || price === undefined) return "0.00";
-    try {
-      const numPrice = typeof price === "string" ? parseFloat(price) : price;
-      return numPrice.toFixed(2);
-    } catch (e) {
-      return "0.00";
-    }
-  };
+  // const formatPrice = (price: any): string => {
+  //   if (price === null || price === undefined) return "0.00";
+  //   try {
+  //     const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  //     return numPrice.toFixed(2);
+  //   } catch (e) {
+  //     return "0.00";
+  //   }
+  // };
 
   const getPriceAsNumber = (price: any): number => {
     if (price === null || price === undefined) return 0;
@@ -341,7 +342,9 @@ const ProductDetailPage = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-sm sm:text-base text-gray-600">No specifications available.</p>
+              <p className="text-sm sm:text-base text-gray-600">
+                No specifications available.
+              </p>
             )}
           </div>
         );
@@ -361,7 +364,9 @@ const ProductDetailPage = () => {
                   ({product.reviews || 0} reviews)
                 </span>
               </div>
-              <p className="text-sm sm:text-base text-gray-600">Reviews coming soon...</p>
+              <p className="text-sm sm:text-base text-gray-600">
+                Reviews coming soon...
+              </p>
             </div>
           </div>
         );
@@ -491,13 +496,13 @@ const ProductDetailPage = () => {
             <div className="space-y-1 sm:space-y-2">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl font-bold text-red-600">
-                  Rs {formatPrice(product.finalPrice)}
+                  {formatPrice(product.finalPrice)}
                 </span>
                 {getPriceAsNumber(product.actualPrice) >
                   getPriceAsNumber(product.finalPrice) && (
                   <>
                     <span className="text-base sm:text-lg text-gray-500 line-through">
-                      Rs {formatPrice(product.actualPrice)}
+                      {formatPrice(product.actualPrice)}
                     </span>
                     <span className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold">
                       -

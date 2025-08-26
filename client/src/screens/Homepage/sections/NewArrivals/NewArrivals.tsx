@@ -20,6 +20,7 @@ import {
   removeFromWishlist,
 } from "../../../../redux/actions/wishlistActions";
 import toast, { Toaster } from "react-hot-toast";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
 const isUserLoggedIn = (): boolean => {
@@ -229,14 +230,22 @@ export const NewArrivals = () => {
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-            <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-black">
+              New Arrivals
+            </h2>
+            <Link
+              to="/products"
+              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
+            >
               View all <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-gray-100 h-72 sm:h-80 lg:h-96 rounded-lg animate-pulse"></div>
+              <div
+                key={i}
+                className="bg-gray-100 h-72 sm:h-80 lg:h-96 rounded-lg animate-pulse"
+              ></div>
             ))}
           </div>
         </div>
@@ -250,8 +259,13 @@ export const NewArrivals = () => {
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-            <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-black">
+              New Arrivals
+            </h2>
+            <Link
+              to="/products"
+              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
+            >
               View all <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
@@ -276,8 +290,13 @@ export const NewArrivals = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-          <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center transition-colors">
+          <h2 className="text-2xl sm:text-3xl font-bold text-black">
+            New Arrivals
+          </h2>
+          <Link
+            to="/products"
+            className="text-black hover:text-gray-600 font-medium text-sm flex items-center transition-colors"
+          >
             View all <ChevronRight className="w-4 h-4 ml-1" />
           </Link>
         </div>
@@ -317,10 +336,10 @@ export const NewArrivals = () => {
                         : "bg-white/80 text-gray-400 hover:text-red-600"
                     }`}
                   >
-                    <Heart 
+                    <Heart
                       className={`w-4 h-4 ${
-                        favorites.has(product.id) ? 'fill-current' : ''
-                      }`} 
+                        favorites.has(product.id) ? "fill-current" : ""
+                      }`}
                     />
                   </button>
 
@@ -336,16 +355,15 @@ export const NewArrivals = () => {
 
                   {/* Product Info */}
                   <div className="space-y-2">
-
                     {/* Price */}
                     <div className="space-y-1">
                       {product.actualPrice !== product.finalPrice && (
                         <span className="text-xs sm:text-sm text-gray-500 line-through block">
-                          RS.{product.actualPrice.toLocaleString()}
+                          {formatPrice(product.actualPrice)}
                         </span>
                       )}
                       <span className="text-sm sm:text-base font-bold text-black block">
-                        RS.{product.finalPrice.toLocaleString()}
+                        {formatPrice(product.finalPrice)}
                       </span>
                     </div>
 
@@ -353,7 +371,6 @@ export const NewArrivals = () => {
                       {product.name}
                     </h3>
 
-                    
                     {/* Color Variants - Mock data for visual similarity to screenshot */}
                     <div className="flex items-center space-x-1 pt-1">
                       <div className="w-4 h-4 rounded-full bg-red-500 border border-gray-200"></div>
@@ -380,7 +397,9 @@ export const NewArrivals = () => {
                               e.stopPropagation();
                               handleAddToCart(product);
                             }}
-                            disabled={addingToCart[product.id] || product.quantity <= 0}
+                            disabled={
+                              addingToCart[product.id] || product.quantity <= 0
+                            }
                             className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all disabled:opacity-50"
                           >
                             {addingToCart[product.id] ? (
