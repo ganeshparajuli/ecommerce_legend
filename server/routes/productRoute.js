@@ -12,7 +12,7 @@ const productUpload = upload.fields([
 ]);
 // ============================
 // PUBLIC ROUTES (No auth required)
-// ============================    
+// ============================
 
 // Basic product retrieval
 router.get("/", productController.getAllProducts);
