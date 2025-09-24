@@ -48,7 +48,12 @@ server.use((req, res, next) => {
 // Middleware
 server.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5173"],
+    origin: [
+      "*",
+      "http://localhost:5173",
+      "http://localhost:5173",
+      "https://186339b33b7c.ngrok-free.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })

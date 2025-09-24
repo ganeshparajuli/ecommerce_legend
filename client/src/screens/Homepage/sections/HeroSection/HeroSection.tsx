@@ -351,108 +351,110 @@ export const HeroSection: React.FC = () => {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className="h-full flex items-center"
           >
-            <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-0 w-full items-center min-h-[500px]">
-              {/* Product Image - Full Display */}
-              <div className="order-2 lg:order-1 flex justify-center items-center relative p-6 lg:p-10">
-                <div className="relative w-full max-w-lg">
-                  {/* Main Product Image - No Card Container */}
-                  <div className="relative w-full h-80 md:h-96 lg:h-[450px]">
-                    <ProductImage
-                      src={currentProduct.image}
-                      alt={currentProduct.name}
-                      className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 hover:scale-105"
-                      fallbackUrl="/placeholder.jpg"
-                    />
+            <Link to={`/product/${currentProduct.id}`}>
+              <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-0 w-full items-center min-h-[500px]">
+                {/* Product Image - Full Display */}
+                <div className="order-2 lg:order-1 flex justify-center items-center relative p-6 lg:p-10">
+                  <div className="relative w-full max-w-lg">
+                    {/* Main Product Image - No Card Container */}
+                    <div className="relative w-full h-80 md:h-96 lg:h-[450px]">
+                      <ProductImage
+                        src={currentProduct.image}
+                        alt={currentProduct.name}
+                        className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 hover:scale-105"
+                        fallbackUrl="/placeholder.jpg"
+                      />
 
-                    {/* Floating Heart Button */}
-                    <div className="absolute top-4 right-4 z-10">
-                      <button
-                        onClick={() => toggleFavorite(currentProduct.id)}
-                        className={`p-3 rounded-full shadow-lg backdrop-blur-sm transition-all transform hover:scale-110 ${
-                          favorites.has(currentProduct.id)
-                            ? "bg-red-100 text-red-600"
-                            : "bg-white/80 text-gray-400 hover:text-red-600"
-                        }`}
-                      >
-                        <Heart
-                          className={`w-5 h-5 ${
+                      {/* Floating Heart Button */}
+                      <div className="absolute top-4 right-4 z-10">
+                        <button
+                          onClick={() => toggleFavorite(currentProduct.id)}
+                          className={`p-3 rounded-full shadow-lg backdrop-blur-sm transition-all transform hover:scale-110 ${
                             favorites.has(currentProduct.id)
-                              ? "fill-current"
-                              : ""
+                              ? "bg-red-100 text-red-600"
+                              : "bg-white/80 text-gray-400 hover:text-red-600"
                           }`}
-                        />
-                      </button>
+                        >
+                          <Heart
+                            className={`w-5 h-5 ${
+                              favorites.has(currentProduct.id)
+                                ? "fill-current"
+                                : ""
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Product Info - Right Side */}
-              <div className="order-1 lg:order-2 text-center lg:text-left lg:pl-8 lg:pr-6 max-lg:pt-14">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="space-y-6"
-                >
-                  {/* Discount Offer Badge */}
-                  {/* Featured Badge */}
-                  <div className="inline-block">
-                    <p className="text-gray-600 text-sm md:text-base font-medium mb-3 uppercase tracking-wide">
-                      Capture Action Smarter
-                    </p>
-                    <div className="flex items-center justify-center lg:justify-start space-x-2 mb-3">
-                      <span className="bg-red-600 text-white px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wide">
-                        Featured
-                      </span>
-                      <p className="text-gray-600 text-sm md:text-base font-medium uppercase tracking-wide">
+                {/* Product Info - Right Side */}
+                <div className="order-1 lg:order-2 text-center lg:text-left lg:pl-8 lg:pr-6 max-lg:pt-14">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="space-y-6"
+                  >
+                    {/* Discount Offer Badge */}
+                    {/* Featured Badge */}
+                    <div className="inline-block">
+                      <p className="text-gray-600 text-sm md:text-base font-medium mb-3 uppercase tracking-wide">
                         Capture Action Smarter
                       </p>
+                      <div className="flex items-center justify-center lg:justify-start space-x-2 mb-3">
+                        <span className="bg-red-600 text-white px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wide">
+                          Featured
+                        </span>
+                        <p className="text-gray-600 text-sm md:text-base font-medium uppercase tracking-wide">
+                          Capture Action Smarter
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Product Title */}
-                  <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-black mb-6 leading-tight uppercase">
-                    {currentProduct.name}
-                  </h1>
+                    {/* Product Title */}
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-black mb-6 leading-tight uppercase">
+                      {currentProduct.name}
+                    </h1>
 
-                  {/* Price Section */}
-                  <div className="flex items-center justify-center lg:justify-start space-x-4 mb-8 flex-wrap">
-                    <span className="text-2xl md:text-3xl lg:text-4xl font-bold text-red-600">
-                      {formatPrice(currentProduct.finalPrice, "₨")}
-                    </span>
-                    {currentProduct.actualPrice !==
-                      currentProduct.finalPrice && (
-                      <>
-                        <span className="text-lg md:text-xl text-gray-500 line-through">
-                          {formatPrice(currentProduct.actualPrice, "₨")}
-                        </span>
-                        <span className="bg-red-600 text-white px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wide">
-                          SAVE{" "}
-                          {formatPrice(
-                            currentProduct.actualPrice -
-                              currentProduct.finalPrice,
-                            "₨"
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                    {/* Price Section */}
+                    <div className="flex items-center justify-center lg:justify-start space-x-4 mb-8 flex-wrap">
+                      <span className="text-2xl md:text-3xl lg:text-4xl font-bold text-red-600">
+                        {formatPrice(currentProduct.finalPrice, "₨")}
+                      </span>
+                      {currentProduct.actualPrice !==
+                        currentProduct.finalPrice && (
+                        <>
+                          <span className="text-lg md:text-xl text-gray-500 line-through">
+                            {formatPrice(currentProduct.actualPrice, "₨")}
+                          </span>
+                          <span className="bg-red-600 text-white px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wide">
+                            SAVE{" "}
+                            {formatPrice(
+                              currentProduct.actualPrice -
+                                currentProduct.finalPrice,
+                              "₨"
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </div>
 
-                  {/* Action Button */}
-                  <div className="pt-2">
-                    <Link to={`/product/${currentProduct.id}`}>
-                      <Button
-                        size="lg"
-                        className="bg-black hover:bg-gray-800 text-white px-10 py-4 text-base md:text-lg font-bold uppercase tracking-wider transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-                      >
-                        Available Now
-                      </Button>
-                    </Link>
-                  </div>
-                </motion.div>
+                    {/* Action Button */}
+                    <div className="pt-2">
+                      <Link to={`/product/${currentProduct.id}`}>
+                        <Button
+                          size="lg"
+                          className="bg-black hover:bg-gray-800 text-white px-10 py-4 text-base md:text-lg font-bold uppercase tracking-wider transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+                        >
+                          Available Now
+                        </Button>
+                      </Link>
+                    </div>
+                  </motion.div>
+                </div>
               </div>
-            </div>
+            </Link>
           </motion.div>
         </AnimatePresence>
       </div>

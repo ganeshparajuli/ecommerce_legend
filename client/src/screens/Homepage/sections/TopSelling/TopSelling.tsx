@@ -105,7 +105,7 @@ export const TopSelling = () => {
   // Loading state
   if (isLoading) {
     return (
-      <section className="py-16 bg-white">
+      <section className="py-0 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -136,9 +136,9 @@ export const TopSelling = () => {
   // Error state
   if (error) {
     return (
-      <section className="py-16 bg-white">
+      <section className="py-0 bg-white">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
             Popular Products
           </h2>
           <p className="text-gray-600 mb-6">{error}</p>
@@ -154,10 +154,10 @@ export const TopSelling = () => {
   }
 
   return (
-    <section className="py-16 bg-white">
+    <section className="py-0 bg-white">
       <div className="max-w-7xl mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
             Popular Products
           </h2>
@@ -175,6 +175,7 @@ export const TopSelling = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
+              className=""
             >
               <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">
                 {section.title}
@@ -184,9 +185,9 @@ export const TopSelling = () => {
                   <a
                     key={product.id}
                     href={`/product/${product.id}`}
-                    className="block group"
+                    className="block group border border-gray-100 rounded-lg"
                   >
-                    <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex items-center space-x-4 p-4 hover:bg-gray-50 rounded-lg  hover:shadow-md transition-all">
                       {/* Product Image */}
                       <div className="w-16 h-16 bg-white rounded-lg flex-shrink-0 overflow-hidden border border-gray-100">
                         <ProductImage
@@ -243,19 +244,20 @@ export const TopSelling = () => {
         </div>
 
         {/* Bottom section with additional product showcases */}
-        <h3 className="flex flex-col text-2xl font-bold text-gray-800 mt-6">
+        <h2 className="flex flex-col text-3xl font-bold text-gray-800 mt-8">
           Recommended Products
-        </h3>
+        </h2>
+
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
           {bestSelling.slice(0, 4).map((product, index) => (
             <a
               key={product.id}
               href={`/product/${product.id}`}
-              className="block group"
+              className="block group border border-gray-100 rounded-lg hover:bg-gray-50 hover:shadow-md"
             >
               <div className="text-center">
                 {/* Product Image */}
-                <div className="w-full h-32 bg-gray-50 rounded-lg mb-3 overflow-hidden">
+                <div className="w-full h-32 mb-3 overflow-hidden">
                   <ProductImage
                     src={product.image}
                     alt={product.name}

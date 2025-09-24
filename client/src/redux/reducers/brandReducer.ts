@@ -9,7 +9,7 @@ import {
   ClearBrandErrors,
 } from "../constants/brandConstants";
 import type { BrandState } from "../constants/brandConstants";
-import type { Reducer, AnyAction } from 'redux';
+import type { Reducer, AnyAction } from "redux";
 
 const initialState: BrandState = {
   brands: [],
@@ -22,7 +22,10 @@ const initialState: BrandState = {
   imageUploading: false,
 };
 
-export const brandReducer: Reducer<BrandState, AnyAction> = (state = initialState, action) => {
+export const brandReducer: Reducer<BrandState, AnyAction> = (
+  state = initialState,
+  action
+) => {
   switch (action.type) {
     // All Brands
     case GetAllBrands.Request:
@@ -118,9 +121,7 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (state = initialStat
         loading: false,
         isUpdated: true,
         brands: state.brands.map((brand) =>
-          brand.id === action.payload.brand.id
-            ? action.payload.brand
-            : brand
+          brand.id === action.payload.brand.id ? action.payload.brand : brand
         ),
         error: null,
       };
@@ -155,13 +156,12 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (state = initialStat
         imageUploading: false,
         isUpdated: true,
         brands: state.brands.map((brand) =>
-          brand.id === action.payload.brand.id
-            ? action.payload.brand
-            : brand
+          brand.id === action.payload.brand.id ? action.payload.brand : brand
         ),
-        brand: state.brand?.id === action.payload.brand.id 
-          ? action.payload.brand 
-          : state.brand,
+        brand:
+          state.brand?.id === action.payload.brand.id
+            ? action.payload.brand
+            : state.brand,
         error: null,
       };
 
@@ -195,9 +195,7 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (state = initialStat
         ...state,
         loading: false,
         isDeleted: true,
-        brands: state.brands.filter(
-          (brand) => brand.id !== action.payload
-        ),
+        brands: state.brands.filter((brand) => brand.id !== action.payload),
         error: null,
       };
 

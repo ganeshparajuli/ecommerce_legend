@@ -209,7 +209,7 @@ const CompactFooter: React.FC = () => {
       </div> */}
 
       {/* Main Footer Content - Broader and More Spacious */}
-      <div className="max-w-full px-6 sm:px-8 lg:px-12 py-12">
+      <div className="max-w-full px-6 sm:px-8 lg:px-12 pt-8 pb-6">
         {/* Main grid - desktop - 4 columns with more spacing */}
         <div className="hidden md:grid grid-cols-1 md:grid-cols-4 gap-x-12 gap-y-12">
           {/* Column 1: Store Info & Contact - Expanded */}
@@ -580,12 +580,12 @@ const CompactFooter: React.FC = () => {
 
         {/* Copyright - Expanded */}
         <div
-          className={`mt-12 pt-8 border-t border-white/10 transition-all duration-700 delay-500 transform ${
+          className={`mt-8 pt-6 border-t border-white/10 transition-all duration-700 delay-500 transform ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
           }`}
         >
-          <div className="text-center text-white/50 text-base space-y-3">
-            <p className="text-lg">
+          <div className="text-center text-white/50 text-base space-y-1">
+            <p className="text-body">
               © {new Date().getFullYear()} {displayStoreSettings.storeName} |
               All Rights Reserved
             </p>

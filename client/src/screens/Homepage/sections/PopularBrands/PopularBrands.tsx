@@ -36,7 +36,9 @@ export const PopularBrands = () => {
     ? brands.map((brand, index) => ({
         ...brand,
         count: brand.productsCount || Math.floor(Math.random() * 300) + 25,
-        link: `/products?brand=${brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-')}`,
+        link: `/products?brand=${
+          brand.slug || brand.name.toLowerCase().replace(/\s+/g, "-")
+        }`,
       }))
     : [];
 
@@ -112,13 +114,18 @@ export const PopularBrands = () => {
   // Loading state
   if (isLoading) {
     return (
-      <section className="py-16 bg-white">
+      <section className="pt-8 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-800">FEATURED BRANDS</h2>
+            <h2 className="text-3xl font-bold text-gray-800">
+              FEATURED BRANDS
+            </h2>
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-gray-100 h-24 rounded-lg animate-pulse"></div>
+                <div
+                  key={i}
+                  className="bg-gray-100 h-24 rounded-lg animate-pulse"
+                ></div>
               ))}
             </div>
           </div>
@@ -130,9 +137,11 @@ export const PopularBrands = () => {
   // Error state
   if (reduxError || (!hasBrands && !loading)) {
     return (
-      <section className="py-16 bg-white">
+      <section className="pt-8 bg-white">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">FEATURED BRANDS</h2>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            FEATURED BRANDS
+          </h2>
           <p className="text-gray-600 mb-6">
             {reduxError ? "Failed to load brands" : "No brands found"}
           </p>
@@ -150,13 +159,16 @@ export const PopularBrands = () => {
   const visibleBrandsList = getVisibleBrands();
 
   return (
-    <section className="py-16 bg-white">
+    <section className="pt-8 bg-white">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">FEATURED BRANDS</h2>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            FEATURED BRANDS
+          </h2>
           <p className="text-gray-600">
-            Discover our trusted brand partners ({processedBrands.length} brands available)
+            Discover our trusted brand partners ({processedBrands.length} brands
+            available)
           </p>
         </div>
 
@@ -168,19 +180,22 @@ export const PopularBrands = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="group"
+              className="group border-gra-100 border rounded-lg"
               onMouseEnter={() => setHoveredBrand(brand.id)}
               onMouseLeave={() => setHoveredBrand(null)}
             >
               <Link to={brand.link} className="block">
-                <div className="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow flex items-center justify-center h-24 group-hover:bg-white border border-transparent hover:border-gray-200">
+                <div className=" p-6 hover:shadow-md transition-shadow flex items-center justify-center h-24 group-hover:bg-white border border-transparent">
                   <BrandImage
                     src={brand.image}
                     alt={brand.name}
                     className="max-w-full max-h-16 object-contain group-hover:scale-110 transition-transform duration-300"
                     fallbackText={brand.name.charAt(0)}
                     onError={(error) => {
-                      console.error(`❌ Brand image failed to load for ${brand.name}:`, error);
+                      console.error(
+                        `❌ Brand image failed to load for ${brand.name}:`,
+                        error
+                      );
                     }}
                   />
                 </div>
@@ -203,7 +218,11 @@ export const PopularBrands = () => {
               onClick={togglePlayPause}
               className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
             >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+              {isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5" />
+              )}
             </button>
 
             <button
@@ -218,19 +237,19 @@ export const PopularBrands = () => {
         {/* Dots Indicator */}
         {processedBrands.length > visibleBrands && (
           <div className="flex justify-center mt-6 space-x-2">
-            {Array.from({ length: Math.ceil(processedBrands.length / visibleBrands) }).map(
-              (_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentIndex(index * visibleBrands)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    Math.floor(currentIndex / visibleBrands) === index
-                      ? "bg-red-600 w-6"
-                      : "bg-gray-300 hover:bg-gray-400"
-                  }`}
-                />
-              )
-            )}
+            {Array.from({
+              length: Math.ceil(processedBrands.length / visibleBrands),
+            }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index * visibleBrands)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  Math.floor(currentIndex / visibleBrands) === index
+                    ? "bg-red-600 w-6"
+                    : "bg-gray-300 hover:bg-gray-400"
+                }`}
+              />
+            ))}
           </div>
         )}
 
