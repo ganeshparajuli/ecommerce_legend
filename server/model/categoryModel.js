@@ -110,21 +110,9 @@ class Category {
   // Get all categories
   static async findAll() {
     try {
-      // const query = `SELECT c.*, b.name as brand_name FROM categories c 
-      //                LEFT JOIN brands b ON c.brandId = b.id 
-      //                LEFT JOIN category_series d ON d.id = c.categoryId 
-      //                ORDER BY c.name`;
-
-      const query = `
-      SELECT c.*, 
-             b.name AS brand_name, 
-             d.series_name
-      FROM categories c
-      LEFT JOIN brands b ON c.brandId = b.id
-      LEFT JOIN category_series d ON d.category_id = c.id
-      ORDER BY c.name;
-      `;
-
+      const query = `SELECT c.*, b.name as brand_name FROM categories c 
+                     LEFT JOIN brands b ON c.brandId = b.id 
+                     ORDER BY c.name`;
       const [result] = await db.execute(query);
       return result;
     } catch (error) {
