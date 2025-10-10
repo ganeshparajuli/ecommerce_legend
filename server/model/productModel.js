@@ -120,13 +120,86 @@ class Product {
   }
 
   static async findAll(includeDeleted = false) {
-    let query = "SELECT * FROM products";
-    if (!includeDeleted) {
-      query += " WHERE is_deleted = false";
-    }
-    const [rows] = await db.execute(query);
-    return rows;
-  }
+    // let query = "SELECT * FROM products";
+//   let query = `
+//   SELECT p.*, 
+//          cs.series_name, 
+//          cs.is_active, 
+//          cs.category_id
+//   FROM products p
+//   LEFT JOIN category_series cs 
+//          ON cs.product_id = p.id
+// `;
+
+let query = `SELECT 
+    p.id,
+    p.name,
+    p.brand,
+    p.category,
+    p.description,
+    p.actualPrice,
+    p.discountPrice,
+    p.finalPrice,
+    p.quantity,
+    p.featured,
+    p.image,
+    p.color,
+    p.created_at,
+    p.updated_at,
+    p.sku,
+    p.keyFeatures,
+    p.specifications,
+    p.productDetails,
+    p.rating,
+    p.reviewCount,
+    p.availability,
+    p.originalPrice,
+    p.savings,
+    p.tags,
+    p.is_deleted,
+    p.deleted_at,
+    p.deleted_reason,
+    zs.series_name,
+    zs.is_active,
+    zs.category_id,
+    CONCAT(
+        '[', 
+        GROUP_CONCAT(
+            JSON_OBJECT(
+                'variant_id', pv.id,
+                'color', pv.color,
+                'storage', pv.storage,
+                'finalPrice', pv.finalPrice,
+                'quantity', pv.quantity
+            )
+            SEPARATOR ','
+        ),
+        ']'
+    ) AS variants
+FROM products p
+LEFT JOIN categories cs 
+       ON cs.id COLLATE utf8mb4_unicode_ci = p.category COLLATE utf8mb4_unicode_ci
+LEFT JOIN category_series zs 
+       ON zs.category_id COLLATE utf8mb4_unicode_ci = cs.id COLLATE utf8mb4_unicode_ci
+LEFT JOIN product_variants pv 
+       ON pv.product_id COLLATE utf8mb4_unicode_ci = p.id COLLATE utf8mb4_unicode_ci
+`;
+
+if (!includeDeleted) {
+  query += " WHERE p.is_deleted = false";
+}
+
+query += `
+GROUP BY p.id, zs.series_name, zs.is_active, zs.category_id
+LIMIT 0, 25;
+`;
+
+
+const [rows] = await db.execute(query);
+
+return rows;
+
+}
 
   static async findById(id, includeDeleted = false) {
     let query = "SELECT * FROM products WHERE id = ?";
@@ -233,69 +306,182 @@ class Product {
         updated_at,
       ]);
 
-      return { id, ...product };
+// Extract storage and size from productData (or default to null)
+const storage = productData.storage || null;
+const size = productData.size || null;
+const variantColor = productData.color || null;
+
+// Insert default variant
+const variantQuery = `
+  INSERT INTO product_variants
+    (id, actualPrice, discountPrice, finalPrice, originalPrice, quantity, storage, size, color, product_id, created_at, updated_at, is_deleted)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+`;
+
+await db.execute(variantQuery, [
+  uuidv4(),               // variant id
+  actualPrice || null,
+  discountPrice || null,
+  finalPrice || null,
+  originalPrice || null,
+  quantity || 0,
+  storage,                // from above
+  size,                   // from above
+  variantColor,           // from above
+  id                      // link to parent product
+]);
+    return { id, ...product };
     } catch (error) {
       console.error("Error in Product.create:", error);
       throw error;
     }
+
   }
+
+  // static async update(id, productData) {
+  //   // Build a dynamic update query based on the provided fields
+  //   let updateFields = [];
+  //   let queryParams = [];
+
+  //   // Only include fields that are actually provided
+  //   for (const [key, value] of Object.entries(productData)) {
+  //     // Skip undefined values
+  //     if (value !== undefined) {
+  //       // Handle JSON fields
+  //       if (["keyFeatures", "specifications", "tags"].includes(key)) {
+  //         updateFields.push(`${key} = ?`);
+  //         queryParams.push(
+  //           typeof value === "string" ? value : JSON.stringify(value)
+  //         );
+  //       } else {
+  //         updateFields.push(`${key} = ?`);
+  //         queryParams.push(value);
+  //       }
+  //     }
+  //   }
+
+  //   // Auto-calculate savings if prices are updated
+  //   if (productData.originalPrice || productData.finalPrice) {
+  //     const existing = await Product.findById(id, true); // Include deleted to allow updates
+  //     const originalPrice = productData.originalPrice || existing.originalPrice;
+  //     const finalPrice = productData.finalPrice || existing.finalPrice;
+
+  //     if (originalPrice && finalPrice) {
+  //       const savings = parseFloat(originalPrice) - parseFloat(finalPrice);
+  //       updateFields.push("savings = ?");
+  //       queryParams.push(savings);
+  //     }
+  //   }
+
+  //   // Add the updated_at timestamp
+  //   updateFields.push("updated_at = ?");
+  //   queryParams.push(new Date());
+
+  //   // Add the ID for the WHERE clause
+  //   queryParams.push(id);
+
+  //   const query = `
+  //     UPDATE products 
+  //     SET ${updateFields.join(", ")} 
+  //     WHERE id = ?
+  //   `;
+
+  //   try {
+  //     const [result] = await db.execute(query, queryParams);
+  //     return { id, ...productData, updated_at: new Date() };
+  //   } catch (error) {
+  //     console.error("Error in Product.update:", error);
+  //     throw error;
+  //   }
+  // }
+
 
   static async update(id, productData) {
-    // Build a dynamic update query based on the provided fields
-    let updateFields = [];
-    let queryParams = [];
+  let updateFields = [];
+  let queryParams = [];
 
-    // Only include fields that are actually provided
-    for (const [key, value] of Object.entries(productData)) {
-      // Skip undefined values
-      if (value !== undefined) {
-        // Handle JSON fields
-        if (["keyFeatures", "specifications", "tags"].includes(key)) {
-          updateFields.push(`${key} = ?`);
-          queryParams.push(
-            typeof value === "string" ? value : JSON.stringify(value)
-          );
-        } else {
-          updateFields.push(`${key} = ?`);
-          queryParams.push(value);
-        }
+  // Only include fields that are actually provided
+  for (const [key, value] of Object.entries(productData)) {
+    if (value !== undefined) {
+      if (["keyFeatures", "specifications", "tags"].includes(key)) {
+        updateFields.push(`${key} = ?`);
+        queryParams.push(typeof value === "string" ? value : JSON.stringify(value));
+      } else {
+        updateFields.push(`${key} = ?`);
+        queryParams.push(value);
       }
-    }
-
-    // Auto-calculate savings if prices are updated
-    if (productData.originalPrice || productData.finalPrice) {
-      const existing = await Product.findById(id, true); // Include deleted to allow updates
-      const originalPrice = productData.originalPrice || existing.originalPrice;
-      const finalPrice = productData.finalPrice || existing.finalPrice;
-
-      if (originalPrice && finalPrice) {
-        const savings = parseFloat(originalPrice) - parseFloat(finalPrice);
-        updateFields.push("savings = ?");
-        queryParams.push(savings);
-      }
-    }
-
-    // Add the updated_at timestamp
-    updateFields.push("updated_at = ?");
-    queryParams.push(new Date());
-
-    // Add the ID for the WHERE clause
-    queryParams.push(id);
-
-    const query = `
-      UPDATE products 
-      SET ${updateFields.join(", ")} 
-      WHERE id = ?
-    `;
-
-    try {
-      const [result] = await db.execute(query, queryParams);
-      return { id, ...productData, updated_at: new Date() };
-    } catch (error) {
-      console.error("Error in Product.update:", error);
-      throw error;
     }
   }
+
+  // Auto-calculate savings if prices are updated
+  if (productData.originalPrice || productData.finalPrice) {
+    const existing = await Product.findById(id, true); // include deleted
+    const originalPrice = productData.originalPrice || existing.originalPrice;
+    const finalPrice = productData.finalPrice || existing.finalPrice;
+
+    if (originalPrice && finalPrice) {
+      const savings = parseFloat(originalPrice) - parseFloat(finalPrice);
+      updateFields.push("savings = ?");
+      queryParams.push(savings);
+    }
+  }
+
+  // Add updated_at timestamp
+  const now = new Date();
+  updateFields.push("updated_at = ?");
+  queryParams.push(now);
+
+  // Add ID for WHERE clause
+  queryParams.push(id);
+
+  const query = `
+    UPDATE products 
+    SET ${updateFields.join(", ")} 
+    WHERE id = ?
+  `;
+
+  try {
+    const [result] = await db.execute(query, queryParams);
+
+    // ✅ Update price-related fields in product_variants if any price-related field is updated
+    const priceFields = ["actualPrice", "discountPrice", "finalPrice", "originalPrice", "quantity"];
+    const priceUpdateData = {};
+
+    for (const field of priceFields) {
+      if (productData[field] !== undefined) {
+        priceUpdateData[field] = productData[field];
+      }
+    }
+
+    if (Object.keys(priceUpdateData).length > 0) {
+      let variantUpdateFields = [];
+      let variantParams = [];
+
+      for (const [key, value] of Object.entries(priceUpdateData)) {
+        variantUpdateFields.push(`${key} = ?`);
+        variantParams.push(value);
+      }
+
+      variantUpdateFields.push("updated_at = ?");
+      variantParams.push(now);
+
+      variantParams.push(id); // product_id in product_variants
+
+      const variantQuery = `
+        UPDATE product_variants 
+        SET ${variantUpdateFields.join(", ")}
+        WHERE product_id = ?
+      `;
+
+      await db.execute(variantQuery, variantParams);
+    }
+
+    return { id, ...productData, updated_at: now };
+  } catch (error) {
+    console.error("Error in Product.update:", error);
+    throw error;
+  }
+}
 
   static async updateStock(id, quantity) {
     const query =
