@@ -27,7 +27,7 @@ import { getStoreSettings } from "../../../../redux/actions/settingsAction";
 import { StoreImage } from "../../../../utils/imageHelper";
 import { logoutUser } from "../../../../redux/actions/userActions";
 import { toast } from "react-hot-toast";
-
+import joyStoreLogo from "../../../../assets/logo/lool.png";
 interface NavItem {
   name: string;
   hasDropdown: boolean;
@@ -660,8 +660,6 @@ export const NavbarSection: React.FC = () => {
     [products]
   );
 
-  console.log("Filtering", filterByBrandAndCategory("Apple", "iphone"));
-
   return (
     <header
       ref={navbarRef}
@@ -796,7 +794,6 @@ export const NavbarSection: React.FC = () => {
               >
                 {/* Apple Logo and Authorised Reseller */}
                 <div className="flex items-center">
-                  {/* Store Name Section */}
                   <div className="flex flex-col justify-center">
                     <div className="text-lg sm:text-xl md:text-2xl lg:text-2xl xl:text-3xl font-bold text-white tracking-tight leading-tight">
                       {displayStoreSettings.storeName}
@@ -807,9 +804,16 @@ export const NavbarSection: React.FC = () => {
                   <StoreImage
                     src={displayStoreSettings.logo}
                     alt="Apple Logo"
-                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 w-auto object-contain transition-all duration-200 group-hover:scale-105"
+                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-14 w-auto object-contain transition-all duration-200 group-hover:scale-105"
                   />
                 </div>
+                {/* <div className="flex items-center">
+                  <img
+                    src={joyStoreLogo}
+                    alt={displayStoreSettings.storeName || "Joy Store"}
+                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 w-auto object-contain transition-all duration-200 group-hover:scale-105"
+                  />
+                </div> */}
               </Link>
             </div>
 
