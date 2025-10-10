@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { ProductImage } from "../../utils/imageHelper";
+import { formatPrice } from "@/utils/formatPrice";
 
 interface ShippingFormData {
   name: string;
@@ -212,7 +213,7 @@ export const OrderReview: React.FC<OrderReviewProps> = ({
                     </p>
                     <p className="text-sm font-medium text-gray-900 mt-1">
                       {itemPrice > 0 ? (
-                        `Rs. ${itemTotal.toFixed(2)}`
+                        `${formatPrice(itemTotal.toFixed(2))}`
                       ) : (
                         <span className="text-gray-400 flex items-center">
                           <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -237,7 +238,7 @@ export const OrderReview: React.FC<OrderReviewProps> = ({
                       Promo Code Applied: {promoCode}
                     </p>
                     <p className="text-sm text-green-700">
-                      You saved Rs. {discount.toFixed(2)}
+                      You saved {formatPrice(discount.toFixed(2))}
                     </p>
                   </div>
                 </div>
@@ -464,12 +465,12 @@ export const OrderReview: React.FC<OrderReviewProps> = ({
                   Total to Pay:
                 </span>
                 <span className="text-xl font-bold text-indigo-600">
-                  Rs. {finalTotal.toFixed(2)}
+                  {formatPrice(finalTotal.toFixed(2))}
                 </span>
               </div>
               {discount > 0 && (
                 <p className="text-sm text-indigo-600 mt-1">
-                  Includes Rs. {discount.toFixed(2)} promo discount
+                  Includes {formatPrice(discount.toFixed(2))} promo discount
                 </p>
               )}
             </div>

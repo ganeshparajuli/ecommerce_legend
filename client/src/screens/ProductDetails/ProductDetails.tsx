@@ -23,6 +23,7 @@ import {
 } from "../../redux/actions/wishlistActions";
 import { ProductImage, getImageUrl } from "../../utils/imageHelper";
 import type { RootState } from "../../redux/store";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
 const isUserLoggedIn = (): boolean => {
@@ -251,15 +252,15 @@ const ProductDetailPage = () => {
     ));
   };
 
-  const formatPrice = (price: any): string => {
-    if (price === null || price === undefined) return "0.00";
-    try {
-      const numPrice = typeof price === "string" ? parseFloat(price) : price;
-      return numPrice.toFixed(2);
-    } catch (e) {
-      return "0.00";
-    }
-  };
+  // const formatPrice = (price: any): string => {
+  //   if (price === null || price === undefined) return "0.00";
+  //   try {
+  //     const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  //     return numPrice.toFixed(2);
+  //   } catch (e) {
+  //     return "0.00";
+  //   }
+  // };
 
   const getPriceAsNumber = (price: any): number => {
     if (price === null || price === undefined) return 0;
@@ -341,7 +342,9 @@ const ProductDetailPage = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-sm sm:text-base text-gray-600">No specifications available.</p>
+              <p className="text-sm sm:text-base text-gray-600">
+                No specifications available.
+              </p>
             )}
           </div>
         );
@@ -361,7 +364,9 @@ const ProductDetailPage = () => {
                   ({product.reviews || 0} reviews)
                 </span>
               </div>
-              <p className="text-sm sm:text-base text-gray-600">Reviews coming soon...</p>
+              <p className="text-sm sm:text-base text-gray-600">
+                Reviews coming soon...
+              </p>
             </div>
           </div>
         );
@@ -419,13 +424,13 @@ const ProductDetailPage = () => {
     <PageLayout className="min-h-screen bg-white">
       <Toaster />
 
-      <div className="max-w-7xl mx-auto pt-20 sm:pt-28 lg:pt-36 xl:pt-48 px-3 sm:px-4 lg:px-8">
+      <div className="max-w-7xl mx-auto pt-0 sm:pt-28 lg:pt-32 xl:pt-32 px-3 sm:px-4 lg:px-8">
         {/* Back Button */}
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-red-600 mb-4 sm:mb-6 lg:mb-8 transition-colors text-sm sm:text-base"
+          className="flex items-center text-gray-600 hover:text-red-600 mb-4 sm:mb-4 lg:mb-6 transition-colors text-sm sm:text-base"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Back to Products
@@ -454,9 +459,9 @@ const ProductDetailPage = () => {
                   src={product.image}
                   index={index}
                   alt={`${product.name} ${index + 1}`}
-                  className={`aspect-square rounded-lg sm:rounded-xl object-cover cursor-pointer border-2 transition-all ${
+                  className={`aspect-square rounded-lg sm:rounded-xl object-cover cursor-pointer border transition-all ${
                     selectedImage === index
-                      ? "border-red-600 shadow-lg"
+                      ? "border-red-400 shadow-lg"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
                   onClick={() => setSelectedImage(index)}
@@ -491,13 +496,13 @@ const ProductDetailPage = () => {
             <div className="space-y-1 sm:space-y-2">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl font-bold text-red-600">
-                  Rs {formatPrice(product.finalPrice)}
+                  {formatPrice(product.finalPrice)}
                 </span>
                 {getPriceAsNumber(product.actualPrice) >
                   getPriceAsNumber(product.finalPrice) && (
                   <>
                     <span className="text-base sm:text-lg text-gray-500 line-through">
-                      Rs {formatPrice(product.actualPrice)}
+                      {formatPrice(product.actualPrice)}
                     </span>
                     <span className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold">
                       -
@@ -630,7 +635,7 @@ const ProductDetailPage = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="border-t border-gray-200 pt-6 sm:pt-8"
+          className="border-t border-gray-200 pt-0 sm:pt-0"
         >
           <div className="border-b border-gray-200 mb-4 sm:mb-6">
             <nav className="-mb-px flex gap-4 sm:gap-6 lg:gap-8 overflow-x-auto scrollbar-hide">
@@ -650,7 +655,7 @@ const ProductDetailPage = () => {
             </nav>
           </div>
 
-          <div className="min-h-[300px] sm:min-h-[400px] bg-gray-50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-gray-200">
+          <div className="min-h-[300px] sm:min-h-[400px] bg-gray-50 rounded-xl sm:rounded-xl p-4 sm:p-6 lg:p-6 border  mb-2 text-gray-800">
             {renderTabContent()}
           </div>
         </motion.div>

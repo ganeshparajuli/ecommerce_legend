@@ -42,7 +42,7 @@ export const Homepage = () => {
           <HeroSection />
 
           {/* Sections with consistent responsive spacing */}
-          <div className="space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-20">
+          <div className="space-y-8 sm:space-y-12">
             <PopularBrands />
             <NewArrivals />
             <TopSelling />

@@ -8,6 +8,9 @@
   --grey-600: rgba(122, 122, 122, 1);
   --grey-800: rgba(61, 61, 61, 1);
   --grey-900: rgba(31, 31, 31, 1);
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.938rem;
+  line-height: 1.5;
 }
 
 @layer base {
@@ -59,11 +62,11 @@
 
 @layer base {
   * {
-    border-color: theme('colors.border');
+    border-color: theme("colors.border");
   }
   body {
-    background-color: theme('colors.background');
-    color: theme('colors.foreground');
+    background-color: theme("colors.background");
+    color: theme("colors.foreground");
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

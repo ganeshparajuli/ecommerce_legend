@@ -39,7 +39,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   isVisible,
 }) => {
   const dispatch = useDispatch();
-  const { activeSplashScreens, loading, error } = useSelector(
+  const { activeSplashScreens, loading } = useSelector(
     (state: RootState) => state.splash
   );
 
@@ -121,8 +121,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const currentSplash = activeSplashScreens[currentIndex];
   const backgroundStyle = {
     backgroundColor:
-      currentSplash.background_color ||
-      currentSplash.backgroundColor,
+      currentSplash.background_color || currentSplash.backgroundColor,
     color: currentSplash.text_color || currentSplash.textColor || "#ffffff",
   };
 

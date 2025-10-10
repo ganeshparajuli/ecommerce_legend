@@ -250,7 +250,7 @@ export const NewsletterSection: React.FC = () => {
         }
       `}</style>
 
-      <section className="relative min-h-screen bg-white py-20 overflow-hidden">
+      <section className="relative bg-white py-6 overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 bg-[linear-gradient(40deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%)] opacity-20"></div>
         <div className="absolute top-10 left-10 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
@@ -259,16 +259,16 @@ export const NewsletterSection: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <div className="inline-block mb-4">
+            <div className="text-center mb-2">
+              <div className="inline-block mb-2">
                 <span className="bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent text-sm font-semibold tracking-wider uppercase">
                   Stay Connected
                 </span>
               </div>
-              <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 bg-clip-text text-transparent mb-6 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 bg-clip-text text-transparent mb-3 leading-tight">
                 Join Our Newsletter
               </h2>
-              <p className="text-xl text-gray-600 mb-4 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-body text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 Get exclusive insights, cutting-edge updates, and premium
                 content delivered straight to your inbox.
               </p>
@@ -282,17 +282,17 @@ export const NewsletterSection: React.FC = () => {
               )}
             </div>
 
-            <div className="bg-gray-50/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-gray-200 p-8 md:p-12 relative overflow-hidden">
+            <div className="bg-gray-50/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-gray-200 p-4 md:py-6 md:px-16 relative overflow-hidden">
               {/* Card decoration */}
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400"></div>
 
               {!isSubscribed ? (
-                <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Email Input */}
                   <div className="group">
                     <label
                       htmlFor="email"
-                      className="block text-sm font-semibold text-gray-700 mb-3 transition-colors group-focus-within:text-purple-600"
+                      className="block text-body font-semibold text-gray-700 mb-2 transition-colors group-focus-within:text-purple-600"
                     >
                       Email Address
                     </label>
@@ -305,7 +305,7 @@ export const NewsletterSection: React.FC = () => {
                           handleInputChange("email", e.target.value)
                         }
                         placeholder="Enter your email address"
-                        className={`w-full px-6 py-4 bg-white border-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all duration-300 text-gray-800 placeholder-gray-400 text-lg backdrop-blur-sm ${
+                        className={`w-full px-3 py-2 bg-white border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all duration-300 text-gray-800 placeholder-gray-400 text-body placeholder:text-body backdrop-blur-sm ${
                           formErrors.email
                             ? "border-red-400/50 focus:ring-red-400/50 focus:border-red-400"
                             : "border-gray-200 hover:border-gray-300"
@@ -342,21 +342,21 @@ export const NewsletterSection: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting || isAnyLoading}
-                    className={`w-full relative group overflow-hidden rounded-2xl p-1 transition-all duration-300 ${
+                    className={`w-full relative group overflow-hidden rounded-xl p-0 transition-all duration-300 ${
                       isSubmitting || isAnyLoading
                         ? "opacity-50 cursor-not-allowed"
                         : "hover:scale-[1.02] active:scale-[0.98]"
                     }`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-2xl"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-xl"></div>
                     <div
-                      className={`relative bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 rounded-xl px-8 py-4 transition-all duration-300 ${
+                      className={`relative bg-gradient-to-r from-cyan-600 via-purple-600 to-pink-600 rounded-xl px-8 py-2 transition-all duration-300 ${
                         isSubmitting || isAnyLoading
                           ? "opacity-70"
                           : "group-hover:from-cyan-500 group-hover:via-purple-500 group-hover:to-pink-500"
                       }`}
                     >
-                      <div className="flex items-center justify-center text-white font-bold text-lg">
+                      <div className="flex items-center justify-center text-white font-bold text-body">
                         {isSubmitting || isAnyLoading ? (
                           <>
                             {LoadingSpinner}
@@ -403,7 +403,7 @@ export const NewsletterSection: React.FC = () => {
 
                   {/* General Error */}
                   {formErrors.general && (
-                    <div className="mt-6 p-6 bg-red-50 border border-red-200 rounded-2xl backdrop-blur-sm animate-fadeIn">
+                    <div className="mt-6 p-3 bg-red-50 border border-red-200 rounded-xl backdrop-blur-sm animate-fadeIn">
                       <div className="flex items-start">
                         <div className="flex-shrink-0">
                           <svg
@@ -430,8 +430,8 @@ export const NewsletterSection: React.FC = () => {
                 </form>
               ) : (
                 /* Success State */
-                <div className="text-center py-12 animate-fadeIn">
-                  <div className="mb-8">
+                <div className="text-center py-6 animate-fadeIn">
+                  <div className="mb-6">
                     <div className="relative w-24 h-24 mx-auto mb-6">
                       <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse"></div>
                       <div className="relative w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
@@ -451,14 +451,14 @@ export const NewsletterSection: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <h3 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
                     Welcome Aboard! 🎉
                   </h3>
-                  <p className="text-xl text-gray-600 mb-8 leading-relaxed max-w-lg mx-auto">
+                  <p className="text-body text-gray-600 mb-8 leading-relaxed max-w-lg mx-auto">
                     You're now part of our exclusive community! Get ready for
                     amazing content, insider tips, and special offers.
                   </p>
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-6 backdrop-blur-sm">
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-6 backdrop-blur-sm">
                     <div className="flex items-start">
                       <div className="flex-shrink-0">
                         <svg
@@ -492,7 +492,7 @@ export const NewsletterSection: React.FC = () => {
             </div>
 
             {/* Privacy Notice */}
-            <div className="mt-12 text-center">
+            <div className="mt-6 text-center">
               <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
                 We respect your privacy and will never spam you.
                 <br />

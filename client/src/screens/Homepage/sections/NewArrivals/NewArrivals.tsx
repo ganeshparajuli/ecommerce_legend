@@ -20,6 +20,7 @@ import {
   removeFromWishlist,
 } from "../../../../redux/actions/wishlistActions";
 import toast, { Toaster } from "react-hot-toast";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
 const isUserLoggedIn = (): boolean => {
@@ -226,17 +227,25 @@ export const NewArrivals = () => {
   // Loading state
   if (isLoading) {
     return (
-      <section className="py-12 bg-white">
+      <section className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-            <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-black">
+              New Arrivals
+            </h2>
+            <Link
+              to="/products"
+              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
+            >
               View all <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-gray-100 h-72 sm:h-80 lg:h-96 rounded-lg animate-pulse"></div>
+              <div
+                key={i}
+                className="bg-gray-100 h-72 sm:h-80 lg:h-96 rounded-lg animate-pulse"
+              ></div>
             ))}
           </div>
         </div>
@@ -247,15 +256,20 @@ export const NewArrivals = () => {
   // Error state
   if (error) {
     return (
-      <section className="py-12 bg-white">
+      <section className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-            <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-black">
+              New Arrivals
+            </h2>
+            <Link
+              to="/products"
+              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
+            >
               View all <ChevronRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
-          <div className="text-center py-12">
+          <div className="text-center py-1">
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={() => dispatch(getAllProducts() as any)}
@@ -270,14 +284,19 @@ export const NewArrivals = () => {
   }
 
   return (
-    <section className="py-12 bg-white">
+    <section className=" bg-white">
       <Toaster />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-black">New Arrivals</h2>
-          <Link to="/products" className="text-black hover:text-gray-600 font-medium text-sm flex items-center transition-colors">
+          <h2 className="text-2xl sm:text-3xl font-bold text-black">
+            New Arrivals
+          </h2>
+          <Link
+            to="/products"
+            className="text-black hover:text-gray-600 font-medium text-sm flex items-center transition-colors"
+          >
             View all <ChevronRight className="w-4 h-4 ml-1" />
           </Link>
         </div>
@@ -291,11 +310,11 @@ export const NewArrivals = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className="group relative"
+              className="group relative border border-gray-100 rounded-lg"
               onMouseEnter={() => setHoveredProduct(product.id)}
               onMouseLeave={() => setHoveredProduct(null)}
             >
-              <Link to={`/product/${product.id}`} className="block">
+              <Link to={`/product/${product.id}`} className="block ">
                 <div className="relative overflow-hidden bg-white">
                   {/* Product Badges */}
                   {product.isNew && (
@@ -317,43 +336,41 @@ export const NewArrivals = () => {
                         : "bg-white/80 text-gray-400 hover:text-red-600"
                     }`}
                   >
-                    <Heart 
+                    <Heart
                       className={`w-4 h-4 ${
-                        favorites.has(product.id) ? 'fill-current' : ''
-                      }`} 
+                        favorites.has(product.id) ? "fill-current" : ""
+                      }`}
                     />
                   </button>
 
                   {/* Product Image */}
-                  <div className="relative bg-gray-50 h-48 sm:h-56 lg:h-64 mb-3">
+                  <div className="relative">
                     <ProductImage
                       src={product.image}
                       alt={product.name}
-                      className="w-full h-full object-contain p-2 sm:p-4 transition-transform duration-300 group-hover:scale-105"
+                      className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                       fallbackUrl="/placeholder.jpg"
                     />
                   </div>
 
                   {/* Product Info */}
-                  <div className="space-y-2">
-
+                  <div className="p-4">
                     {/* Price */}
                     <div className="space-y-1">
                       {product.actualPrice !== product.finalPrice && (
                         <span className="text-xs sm:text-sm text-gray-500 line-through block">
-                          RS.{product.actualPrice.toLocaleString()}
+                          {formatPrice(product.actualPrice)}
                         </span>
                       )}
                       <span className="text-sm sm:text-base font-bold text-black block">
-                        RS.{product.finalPrice.toLocaleString()}
+                        {formatPrice(product.finalPrice)}
                       </span>
                     </div>
 
-                    <h3 className="font-medium text-black text-sm sm:text-base leading-tight line-clamp-2">
+                    <h3 className="font-medium text-gray-800 text-sm sm:text-base leading-tight line-clamp-2">
                       {product.name}
                     </h3>
 
-                    
                     {/* Color Variants - Mock data for visual similarity to screenshot */}
                     <div className="flex items-center space-x-1 pt-1">
                       <div className="w-4 h-4 rounded-full bg-red-500 border border-gray-200"></div>
@@ -362,53 +379,54 @@ export const NewArrivals = () => {
                       <span className="text-xs text-gray-500 ml-1">+1</span>
                     </div>
                   </div>
-
-                  {/* Hover Overlay for Quick Actions */}
-                  <AnimatePresence>
-                    {hoveredProduct === product.id && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/5 flex items-center justify-center"
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleAddToCart(product);
-                            }}
-                            disabled={addingToCart[product.id] || product.quantity <= 0}
-                            className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all disabled:opacity-50"
-                          >
-                            {addingToCart[product.id] ? (
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{
-                                  duration: 1,
-                                  repeat: Infinity,
-                                  ease: "linear",
-                                }}
-                                className="w-4 h-4 border-2 border-t-gray-600 border-r-transparent border-b-transparent border-l-transparent rounded-full"
-                              />
-                            ) : (
-                              <ShoppingCart className="w-4 h-4 text-gray-700" />
-                            )}
-                          </button>
-
-                          <Link
-                            to={`/product/${product.id}`}
-                            className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all"
-                          >
-                            <Eye className="w-4 h-4 text-gray-700" />
-                          </Link>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
+                {/* Hover Overlay for Quick Actions */}
+                <AnimatePresence>
+                  {hoveredProduct === product.id && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-black/5 flex items-center justify-center"
+                      // onClick={(e) => e.preventDefault()}
+                    >
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
+                          disabled={
+                            addingToCart[product.id] || product.quantity <= 0
+                          }
+                          className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+                        >
+                          {addingToCart[product.id] ? (
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
+                              className="w-4 h-4 border-2 border-t-gray-600 border-r-transparent border-b-transparent border-l-transparent rounded-full"
+                            />
+                          ) : (
+                            <ShoppingCart className="w-4 h-4 text-gray-700" />
+                          )}
+                        </button>
+
+                        <Link
+                          to={`/product/${product.id}`}
+                          className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all"
+                        >
+                          <Eye className="w-4 h-4 text-gray-700" />
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </Link>
             </motion.div>
           ))}

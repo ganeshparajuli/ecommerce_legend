@@ -29,6 +29,7 @@ import { Button } from "../../components/ui/button";
 import PageLayout from "../../components/PageLayout";
 import { ProductImage } from "../../utils/imageHelper";
 import toast, { Toaster } from "react-hot-toast";
+import { formatPrice } from "@/utils/formatPrice";
 
 export const Cart = () => {
   const navigate = useNavigate();
@@ -361,7 +362,7 @@ export const Cart = () => {
                             </button>
                           </div>
                           <p className="mt-1 text-xl font-bold text-green-600">
-                            Rs {item.estimatedPrice.toFixed(2)}
+                            {formatPrice(item.estimatedPrice.toFixed(2))}
                           </p>
 
                           <div className="mt-3 flex items-center">
@@ -594,7 +595,7 @@ export const Cart = () => {
                   <div className="flex justify-between py-1">
                     <span className="text-gray-600 font-medium">Subtotal</span>
                     <span className="text-black font-semibold">
-                      Rs {subtotal.toFixed(2)}
+                      {formatPrice(subtotal.toFixed(2))}
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
@@ -602,7 +603,7 @@ export const Cart = () => {
                       Estimated Shipping
                     </span>
                     <span className="text-black font-semibold">
-                      Rs {estimatedShipping.toFixed(2)}
+                      {formatPrice(estimatedShipping.toFixed(2))}
                     </span>
                   </div>
                   <div className="pt-3 border-t border-gray-200">
@@ -611,7 +612,7 @@ export const Cart = () => {
                         Estimated Total
                       </span>
                       <span className="text-xl font-bold text-green-600">
-                        Rs {estimatedTotal.toFixed(2)}
+                        {formatPrice(estimatedTotal.toFixed(2))}
                       </span>
                     </div>
                   </div>

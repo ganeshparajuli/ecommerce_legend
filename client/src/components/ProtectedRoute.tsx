@@ -86,11 +86,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (justLoggedOut === "true") {
     console.log("🚪 User is logged out, redirecting to login");
     return (
-      <Navigate 
-        to={redirectTo} 
-        state={{ from: location.pathname }} 
-        replace 
-      />
+      <Navigate to={redirectTo} state={{ from: location.pathname }} replace />
     );
   }
 
@@ -98,11 +94,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!isAuthenticated && !token) {
     console.log("🔒 Not authenticated, redirecting to login");
     return (
-      <Navigate 
-        to={redirectTo} 
-        state={{ from: location.pathname }} 
-        replace 
-      />
+      <Navigate to={redirectTo} state={{ from: location.pathname }} replace />
     );
   }
 
@@ -112,11 +104,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       "🔑 Token exists but authentication failed, redirecting to login"
     );
     return (
-      <Navigate 
-        to={redirectTo} 
-        state={{ from: location.pathname }} 
-        replace 
-      />
+      <Navigate to={redirectTo} state={{ from: location.pathname }} replace />
     );
   }
 
@@ -124,7 +112,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const normalizeRoles = (roles: string | string[] | undefined): string[] => {
     if (!roles) return [];
     if (Array.isArray(roles)) return roles;
-    if (typeof roles === 'string') return roles.split(",").map((role) => role.trim());
+    if (typeof roles === "string")
+      return roles.split(",").map((role) => role.trim());
     return [];
   };
 
@@ -132,17 +121,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (roles && user) {
     const allowedRoles = normalizeRoles(roles);
     const hasRequiredRole = user.role && allowedRoles.includes(user.role);
-    
+
     if (!hasRequiredRole) {
-      console.log(`👤 User role ${user.role} not in allowed roles: ${allowedRoles.join(', ')}`);
+      console.log(
+        `👤 User role ${user.role} not in allowed roles: ${allowedRoles.join(
+          ", "
+        )}`
+      );
       return <Navigate to="/unauthorized" replace />;
     }
   }
 
   // Success: User is authenticated and authorized
-  console.log(
-    `✅ Rendering protected route for user: ${user?.name} (${user?.role})`
-  );
+
   return <>{children}</>;
 };
 

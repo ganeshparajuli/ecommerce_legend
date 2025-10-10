@@ -31,6 +31,7 @@ import { addToCart } from "../../redux/actions/cartAction";
 import { toast } from "react-hot-toast";
 // import type { WishlistItem } from "../../redux/constants/wishlistConstants";
 import { ProductImage } from "../../utils/imageHelper";
+import { formatPrice } from "@/utils/formatPrice";
 
 interface DisplayWishlistItem {
   id: string;
@@ -217,8 +218,7 @@ const Wishlist: React.FC = () => {
           try {
             const parsedImages = JSON.parse(imageValue);
             if (Array.isArray(parsedImages) && parsedImages.length > 0) {
-              const baseUrl =
-                import.meta.env.VITE_IMAGE_SERVER_URL;
+              const baseUrl = import.meta.env.VITE_IMAGE_SERVER_URL;
               // Remove leading slash if it exists to avoid double slashes
               const imagePath = parsedImages[0].startsWith("/")
                 ? parsedImages[0]
@@ -623,10 +623,10 @@ const Wishlist: React.FC = () => {
 
                       <div className="flex items-center space-x-3">
                         <span className="font-bold text-xl text-black">
-                          Rs{" "}
-                          {typeof item.price === "number"
+                          {formatPrice(item.price.toFixed(2))}
+                          {/* {typeof item.price === "number"
                             ? item.price.toFixed(2)
-                            : "0.00"}
+                            : "0.00"} */}
                         </span>
                         {item.originalPrice &&
                           typeof item.originalPrice === "number" && (
