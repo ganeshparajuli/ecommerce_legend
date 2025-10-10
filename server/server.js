@@ -85,6 +85,7 @@ server.use("/api/cart", cartRoute);
 server.use("/api/order", orderRoute);
 server.use("/api/payments", paymentRoutes);
 server.use("/api/category", categoryRoute);
+server.use("/api/categorySeries", categorySeriesRoute);
 server.use("/api/contact", contactRoute);
 server.use("/api/faq", faqRoute);
 server.use("/api/wishlist", wishlistRoute);
