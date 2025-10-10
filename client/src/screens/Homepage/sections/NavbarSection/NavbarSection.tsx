@@ -27,7 +27,7 @@ import { getStoreSettings } from "../../../../redux/actions/settingsAction";
 import { StoreImage } from "../../../../utils/imageHelper";
 import { logoutUser } from "../../../../redux/actions/userActions";
 import { toast } from "react-hot-toast";
-
+import joyStoreLogo from "../../../../assets/logo/lool.png";
 interface NavItem {
   name: string;
   hasDropdown: boolean;
@@ -312,6 +312,13 @@ export const NavbarSection: React.FC = () => {
     loading: userLoading,
   } = useSelector((state: RootState) => state.user || {});
 
+  // Redux state
+  const {
+    products = [],
+    loading: productLoading,
+    error: reduxError,
+  } = useSelector((state: RootState) => state.products);
+
   const userInfo = useMemo(() => {
     return user
       ? {
@@ -337,6 +344,7 @@ export const NavbarSection: React.FC = () => {
 
   // Categories and brands state
   const categoryState = useSelector((state: RootState) => state.category || {});
+
   const brandState = useSelector((state: RootState) => state.brand || {});
 
   const categories = useMemo(() => {
@@ -481,6 +489,7 @@ export const NavbarSection: React.FC = () => {
 
       if (item.name === "Apple" && item.isDynamic) {
         const appleCategories = getCategoriesForBrand("Apple");
+        console.log("APPLE CATEGORIES", appleCategories);
         newItem.dropdownItems = [
           ...appleCategories,
           ...(appleCategories.length > 0
@@ -568,9 +577,9 @@ export const NavbarSection: React.FC = () => {
         setScrolled(false);
       }
 
-      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+      if (currentScrollY > lastScrollY && currentScrollY > 38) {
         setShowTopBar(false);
-      } else if (currentScrollY < lastScrollY) {
+      } else if (currentScrollY < 38) {
         setShowTopBar(true);
       }
 
@@ -640,12 +649,23 @@ export const NavbarSection: React.FC = () => {
     [categoriesLoading, brandsLoading, getBrandByName]
   );
 
+  const filterByBrandAndCategory = useCallback(
+    (brand: string, category: string) => {
+      return products.filter(
+        (item) =>
+          item.brand?.toLowerCase() === brand.toLowerCase() &&
+          item.category?.toLowerCase() === category.toLowerCase()
+      );
+    },
+    [products]
+  );
+
   return (
     <header
       ref={navbarRef}
       id="main-navbar"
       className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300 ${
-        scrolled ? "shadow-xl border-b border-gray-100" : "shadow-md"
+        scrolled ? "shadow-sm border-b border-gray-100" : "shadow-sm"
       }`}
     >
       {/* Top Bar */}
@@ -654,47 +674,47 @@ export const NavbarSection: React.FC = () => {
           showTopBar
             ? "max-h-40 opacity-100"
             : "max-h-0 opacity-0 overflow-hidden"
-        } md:opacity-100 md:max-h-40`}
+        }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between py-2 md:h-10">
+          <div className="flex flex-col md:flex-row items-center justify-between py-1 md:h-10">
             <div className="flex items-center justify-center md:justify-start w-full md:w-auto mb-2 md:mb-0">
-              <div className="flex items-center space-x-4 text-xs sm:text-sm">
+              <div className="flex items-center space-x-4 text-xs sm:text-xs">
                 {!isAuthenticated ? (
                   <>
                     <Link
                       to="/login"
-                      className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                      className="text-white hover:text-gray-300 transition-colors duration-200 font-normal"
                     >
                       Sign In
                     </Link>
-                    <span className="text-gray-500">|</span>
+                    <span className="text-gray-300">|</span>
                     <Link
                       to="/register"
-                      className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                      className="text-white hover:text-gray-300 transition-colors duration-200 font-normal"
                     >
                       Create an Account
                     </Link>
-                    <span className="text-gray-500">|</span>
+                    <span className="text-gray-300">|</span>
                   </>
                 ) : (
-                  <span className="text-gray-300 font-medium">
-                    Welcome, {user?.name }!
+                  <span className="text-gray-100 font-normal">
+                    Welcome, {user?.name}!
                   </span>
                 )}
                 <Link
                   to="/contact-us"
-                  className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                  className="text-white hover:text-gray-300 transition-colors duration-200 font-normal"
                 >
                   Contact Us
                 </Link>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 text-xs sm:text-sm">
+            <div className="flex items-center space-x-4 text-xs sm:text-xs">
               <Link
                 to="/location"
-                className="text-red-400 hover:text-red-300 transition-colors duration-200 font-semibold"
+                className="text-red-400 hover:text-red-300 transition-colors duration-200 font-normal"
               >
                 Our Locations
               </Link>
@@ -702,7 +722,7 @@ export const NavbarSection: React.FC = () => {
               <div className="hidden lg:flex items-center space-x-4">
                 <Link
                   to="/emi"
-                  className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium"
+                  className="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-normal"
                 >
                   EMI
                 </Link>
@@ -774,7 +794,6 @@ export const NavbarSection: React.FC = () => {
               >
                 {/* Apple Logo and Authorised Reseller */}
                 <div className="flex items-center">
-                  {/* Store Name Section */}
                   <div className="flex flex-col justify-center">
                     <div className="text-lg sm:text-xl md:text-2xl lg:text-2xl xl:text-3xl font-bold text-white tracking-tight leading-tight">
                       {displayStoreSettings.storeName}
@@ -785,25 +804,32 @@ export const NavbarSection: React.FC = () => {
                   <StoreImage
                     src={displayStoreSettings.logo}
                     alt="Apple Logo"
-                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 w-auto object-contain transition-all duration-200 group-hover:scale-105"
+                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-14 w-auto object-contain transition-all duration-200 group-hover:scale-105"
                   />
                 </div>
+                {/* <div className="flex items-center">
+                  <img
+                    src={joyStoreLogo}
+                    alt={displayStoreSettings.storeName || "Joy Store"}
+                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 w-auto object-contain transition-all duration-200 group-hover:scale-105"
+                  />
+                </div> */}
               </Link>
             </div>
 
-            <div className="hidden md:flex flex-1 max-w-xl mx-8">
-              <div className="relative w-full">
+            <div className="hidden md:flex md:justify-center flex-1 max-w-xl mx-8">
+              <div className="relative w-auto md:w-[380px]">
                 <div className="flex rounded-full border border-gray-300 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 bg-white">
                   <input
                     type="text"
                     placeholder="Search..."
-                    className="flex-1 px-4 py-3 text-sm border-0 focus:outline-none focus:ring-0 bg-white text-gray-800 placeholder-gray-500 rounded-l-full"
+                    className="flex-1 px-4 py-2 text-sm border-0 focus:outline-none focus:ring-0 bg-white text-gray-800 placeholder-gray-500 rounded-l-full"
                     onClick={() => {
                       setIsSearchOpen(true);
                       navigate("/products");
                     }}
                   />
-                  <select className="px-4 py-3 text-sm border-l border-gray-300 bg-gray-50 text-gray-700 focus:outline-none cursor-pointer min-w-[140px] font-medium">
+                  {/* <select className="px-4 py-3 text-sm border-l border-gray-300 bg-gray-50 text-gray-700 focus:outline-none cursor-pointer min-w-[140px] font-medium">
                     {searchCategoryOptions.map((option, index) => (
                       <option
                         key={index}
@@ -812,9 +838,9 @@ export const NavbarSection: React.FC = () => {
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                   <button
-                    className="px-5 py-3 bg-red-600 text-white hover:bg-red-700 transition-colors duration-200 flex items-center justify-center font-medium rounded-r-full"
+                    className="px-5 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors duration-200 flex items-center justify-center font-medium rounded-r-full"
                     onClick={() => {
                       setIsSearchOpen(true);
                       navigate("/products");
@@ -829,10 +855,8 @@ export const NavbarSection: React.FC = () => {
 
             <div className="flex items-center space-x-2">
               <div className="hidden lg:flex flex-col items-end mr-6">
-                <div className="text-xs text-white font-medium">
-                  CALL US NOW
-                </div>
-                <div className="text-lg font-bold text-white">
+                {/* <div className="text-xs text-white font-medium">CALL US</div> */}
+                <div className="text-xs font-bold text-white">
                   <a
                     href="tel:9861060000"
                     className="hover:text-red-600 transition-colors"
@@ -848,7 +872,7 @@ export const NavbarSection: React.FC = () => {
                   </a>
                 </div>
                 <div className="text-xs text-white">
-                  FOR SUPPORT ENQUIRIES:{" "}
+                  <span>FOR SUPPORT</span>:{" "}
                   <span className="font-semibold">9840051673</span>
                 </div>
               </div>
@@ -915,48 +939,50 @@ export const NavbarSection: React.FC = () => {
             {navItems.map((item, index) => (
               <li key={index} className="relative group">
                 {item.hasDropdown ? (
-                  <button
-                    className={`h-full flex items-center space-x-2 text-gray-700 hover:text-red-600 px-4 xl:px-6 transition-all duration-200 font-semibold text-sm xl:text-base tracking-wide ${
-                      item.isDynamic &&
+                  <div>
+                    <button
+                      className={`h-full flex items-center space-x-2 text-gray-900 hover:text-red-600 px-4 xl:px-6 transition-all duration-200 font-semibold text-sm xl:text-base tracking-wide ${
+                        item.isDynamic &&
+                        ((item.name === "Categories" && categoriesLoading) ||
+                          (item.name === "Brands" && brandsLoading) ||
+                          ((item.name === "Apple" || item.name === "Samsung") &&
+                            isBrandLoading(item.name)))
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                      onClick={() => toggleDropdown(index)}
+                      aria-expanded={activeDropdown === index}
+                      aria-haspopup="true"
+                      disabled={
+                        item.isDynamic &&
+                        ((item.name === "Categories" && categoriesLoading) ||
+                          (item.name === "Brands" && brandsLoading) ||
+                          ((item.name === "Apple" || item.name === "Samsung") &&
+                            isBrandLoading(item.name)))
+                      }
+                    >
+                      <span>{item.name}</span>
+                      {item.isDynamic &&
                       ((item.name === "Categories" && categoriesLoading) ||
                         (item.name === "Brands" && brandsLoading) ||
                         ((item.name === "Apple" || item.name === "Samsung") &&
-                          isBrandLoading(item.name)))
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                    onClick={() => toggleDropdown(index)}
-                    aria-expanded={activeDropdown === index}
-                    aria-haspopup="true"
-                    disabled={
-                      item.isDynamic &&
-                      ((item.name === "Categories" && categoriesLoading) ||
-                        (item.name === "Brands" && brandsLoading) ||
-                        ((item.name === "Apple" || item.name === "Samsung") &&
-                          isBrandLoading(item.name)))
-                    }
-                  >
-                    <span>{item.name}</span>
-                    {item.isDynamic &&
-                    ((item.name === "Categories" && categoriesLoading) ||
-                      (item.name === "Brands" && brandsLoading) ||
-                      ((item.name === "Apple" || item.name === "Samsung") &&
-                        isBrandLoading(item.name))) ? (
-                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <ChevronDownIcon
-                        className={`h-4 w-4 transition-transform duration-200 ${
-                          activeDropdown === index
-                            ? "rotate-180 text-red-600"
-                            : ""
-                        }`}
-                      />
-                    )}
-                  </button>
+                          isBrandLoading(item.name))) ? (
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <ChevronDownIcon
+                          className={`h-4 w-4 transition-transform duration-200 ${
+                            activeDropdown === index
+                              ? "rotate-180 text-red-600"
+                              : ""
+                          }`}
+                        />
+                      )}
+                    </button>
+                  </div>
                 ) : (
                   <Link
                     to={item.link || "#"}
-                    className="h-full flex items-center text-gray-700 hover:text-red-600 px-4 xl:px-6 transition-all duration-200 font-semibold text-sm xl:text-base tracking-wide"
+                    className="h-full flex items-center text-gray-900 hover:text-red-600 px-4 xl:px-6 transition-all duration-200 font-semibold text-sm xl:text-base tracking-wide"
                   >
                     <span>{item.name}</span>
                   </Link>
@@ -965,17 +991,50 @@ export const NavbarSection: React.FC = () => {
                   activeDropdown === index &&
                   item.dropdownItems &&
                   item.dropdownItems.length > 0 && (
-                    <div className="absolute left-0 mt-0 w-64 bg-white border border-gray-200 rounded-lg shadow-2xl py-2 z-50 animate-fadeIn">
-                      {item.dropdownItems.map((dropdownItem, idx) => (
-                        <Link
-                          key={idx}
-                          to={dropdownItem.link}
-                          className="block px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors duration-150 font-medium border-b border-gray-100 last:border-b-0"
-                          onClick={() => setActiveDropdown(null)}
-                        >
-                          {dropdownItem.name}
-                        </Link>
-                      ))}
+                    <div className="absolute left-0 mt-0 bg-white border border-gray-200 rounded-[8px] shadow-2xl py-2 z-50 animate-fadeIn min-w-64">
+                      {item.name === "Apple" ? (
+                        <div className="flex gap-3 flex-wrap w-[300px] sm:w-[700px]">
+                          {item?.dropdownItems?.map((dropdownItem, idx) => (
+                            <div key={idx} className="w-auto py-2 px-2">
+                              <Link
+                                key={idx}
+                                to={dropdownItem.link}
+                                className="block px-4 text-sm xl:text-base text-gray-900 hover:text-red-600 transition-colors duration-150 font-medium"
+                                onClick={() => setActiveDropdown(null)}
+                              >
+                                {dropdownItem.name}
+                              </Link>
+                              {/* <h5 className="font-semibold text-sm xl:text-base block px-4 py-0"></h5> */}
+                              {filterByBrandAndCategory(
+                                item.name,
+                                dropdownItem.name
+                              ).map((productItem, idx) => (
+                                <Link
+                                  key={idx}
+                                  to={`/product/${productItem.id}`}
+                                  className="block px-4 text-sm text-gray-700 hover:text-red-600 transition-colors duration-150 font-normal my-2"
+                                  onClick={() => setActiveDropdown(null)}
+                                >
+                                  {productItem.name}
+                                </Link>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          {item?.dropdownItems?.map((dropdownItem, idx) => (
+                            <Link
+                              key={idx}
+                              to={dropdownItem.link}
+                              className="block px-4 text-sm text-gray-700  hover:text-red-600 transition-colors duration-150 font-medium   mb-2"
+                              onClick={() => setActiveDropdown(null)}
+                            >
+                              {dropdownItem.name}
+                            </Link>
+                          ))}
+                        </>
+                      )}
                     </div>
                   )}
               </li>

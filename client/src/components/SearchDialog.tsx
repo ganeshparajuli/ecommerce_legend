@@ -221,7 +221,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[650px] p-0 rounded-xl overflow-hidden border-0 shadow-2xl">
-        <DialogTitle className="sr-only">Search Products</DialogTitle>
+        {/* <DialogTitle className="sr-only">Search Products</DialogTitle> */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -233,13 +233,13 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 Search Products
               </h2>
-              <button
+              {/* <button
                 onClick={() => setIsOpen(false)}
                 className="rounded-full p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 aria-label="Close search"
               >
                 <X className="h-5 w-5" />
-              </button>
+              </button> */}
             </div>
 
             <form onSubmit={handleSearch} className="relative mt-4">
@@ -398,7 +398,7 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
                           }`}
                         >
                           {product.image && (
-                            <img
+                            <ProductImage
                               src={product.image}
                               alt={product.name}
                               className="w-10 h-10 object-cover rounded-md"

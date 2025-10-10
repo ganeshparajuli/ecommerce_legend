@@ -124,38 +124,6 @@ CREATE TABLE `categories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Table structure for table `categoriy_series`
---
-CREATE TABLE `category_series` (
-  `id` CHAR(36) NOT NULL,
-  `category_id` CHAR(36) NOT NULL,
-  `series_name` VARCHAR(255) NOT NULL,
-  `is_active` BOOLEAN DEFAULT FALSE,
-  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-  CONSTRAINT `fk_category` FOREIGN KEY (`category_id`) 
-      REFERENCES `categories` (`id`) 
-      ON DELETE CASCADE ON UPDATE CASCADE,
-
-  CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) 
-      REFERENCES `products` (`id`) 
-      ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `category_series`
---
-
-INSERT INTO `category_series` (`id`, `product_id`, `category_id`, `series_name`, `is_active`, `createdAt`, `updatedAt`) VALUES
-('a1b2c3d4-1111-2222-3333-abcdef123456', 'prod-iphone-001', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Series', TRUE, NOW(), NOW()),
-('b2c3d4e5-2222-3333-4444-bcdef1234567', 'prod-iphone-002', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Pro Series', TRUE, NOW(), NOW()),
-('c3d4e5f6-3333-4444-5555-cdef12345678', 'prod-iphone-003', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Series', TRUE, NOW(), NOW()),
-('d4e5f607-4444-5555-6666-def123456789', 'prod-iphone-004', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Pro Series', TRUE, NOW(), NOW());
-
-
---
 -- Dumping data for table `categories`
 --
 
@@ -459,40 +427,6 @@ CREATE TABLE `products` (
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted_reason` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-
---
--- Table structure for table `product_variants`
---
-
-CREATE TABLE `product_variants` (
-  `id` char(36) NOT NULL,
-  `actualPrice` decimal(10,2) DEFAULT NULL,
-  `discountPrice` decimal(10,2) DEFAULT NULL,
-  `finalPrice` decimal(10,2) DEFAULT NULL,
-  `quantity` int(11) DEFAULT 0,
-  `product_id` char(36) NOT NULL,
-  `storage` VARCHAR(50),
-  `size` VARCHAR(50),
-  `color` varchar(50) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `originalPrice` decimal(10,2) DEFAULT NULL,
-  `is_deleted` tinyint(1) DEFAULT 0,
-  `deleted_at` timestamp NULL DEFAULT NULL,
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `product_variants`
---
-INSERT INTO product_variants 
-(id, actualPrice, discountPrice, finalPrice, quantity, product_id, storage, size, color, created_at, updated_at, originalPrice, is_deleted, deleted_at)
-VALUES
-(UUID(), 156000.00, 0.00, 156000.00, 7, '62b03d50-7c89-4cc4-bb94-9df10a53i44a', '128 GB', NULL, 'Red', NOW(), NOW(), 156000.00, 0, NULL),
-(UUID(), 212000.00, 0.00, 212000.00, 7, 'e271e16e-7ed7-46f5-889f-283290631663', '256 GB', NULL, 'Red', NOW(), NOW(), 212000.00, 0, NULL);
-
-
---testing product variant
 
 --
 -- Dumping data for table `products`
@@ -809,15 +743,6 @@ ALTER TABLE `categories`
   ADD KEY `idx_category_brand` (`brandId`);
 
 --
--- Indexes for table `categories`
---
-
-ALTER TABLE `category_series`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_series_name` (`series_name`),
-  ADD KEY `idx_category` (`category_id`);
-
---
 -- Indexes for table `contacts`
 --
 ALTER TABLE `contacts`
@@ -880,13 +805,6 @@ ALTER TABLE `products`
   ADD KEY `idx_products_is_deleted` (`is_deleted`),
   ADD KEY `idx_products_deleted_at` (`deleted_at`);
 
---
--- Indexes for table `product_variants`
---
-ALTER TABLE `product_variants`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_products_is_deleted` (`is_deleted`),
-  ADD KEY `idx_products_deleted_at` (`deleted_at`);
 --
 -- Indexes for table `promocodes`
 --
@@ -1001,22 +919,6 @@ ALTER TABLE `cart_items`
 --
 ALTER TABLE `categories`
   ADD CONSTRAINT `fk_category_brand` FOREIGN KEY (`brandId`) REFERENCES `brands` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
---
--- Constraints for table `category_series`
---
-ALTER TABLE `category_series`
-  ADD CONSTRAINT `fk_category_series_category`
-  FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
-  ON DELETE SET NULL ON UPDATE CASCADE;
-
---
--- Constraints for table `product_variants`
---
-ALTER TABLE `product_variants`
-  ADD CONSTRAINT `fk_product_variants_product`
-  FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-  ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `orders`

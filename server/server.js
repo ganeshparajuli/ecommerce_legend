@@ -9,12 +9,10 @@ const path = require("path");
 const brandRouter = require("./routes/brandRoute");
 const userRouter = require("./routes/userRoute");
 const productRoute = require("./routes/productRoute");
-const productVariantRoute = require("./routes/productVariantRoute");
 const cartRoute = require("./routes/cartRoute");
 const orderRoute = require("./routes/orderRoute");
 const paymentRoutes = require("./routes/paymentRoute");
 const categoryRoute = require("./routes/categoryRoute");
-const categorySeriesRoute = require("./routes/categorySeriesRoute");
 const contactRoute = require("./routes/contactRoute");
 const faqRoute = require("./routes/faqRoute");
 const wishlistRoute = require("./routes/wishlistRoute");
@@ -50,7 +48,12 @@ server.use((req, res, next) => {
 // Middleware
 server.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5173"],
+    origin: [
+      "*",
+      "http://localhost:5173",
+      "http://localhost:5173",
+      "https://186339b33b7c.ngrok-free.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })
@@ -78,13 +81,11 @@ server.use((req, res, next) => {
 server.use("/api/brand", brandRouter);
 server.use("/api/user", userRouter);
 server.use("/api/product", productRoute);
-server.use("/api/productVariant", productVariantRoute);
 server.use("/api/cart", cartRoute);
 server.use("/api/order", orderRoute);
 server.use("/api/payments", paymentRoutes);
 server.use("/api/category", categoryRoute);
 server.use("/api/categorySeries", categorySeriesRoute);
-
 server.use("/api/contact", contactRoute);
 server.use("/api/faq", faqRoute);
 server.use("/api/wishlist", wishlistRoute);

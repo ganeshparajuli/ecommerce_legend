@@ -1,0 +1,31 @@
+PRICE FORMATTING
+home page
+products page
+Product Details Page
+Product Categories
+Categories
+Brands
+Cart
+Wishlist
+My Orders
+
+<!-- Fonts -->
+
+Font added
+Home page spacing consistent (Removed unnesessary paddings)
+Improved the card ui of new arrivals, popular products and brands
+removed the search close icon in case of the searchbar modal
+Fixed bugs of trending searchbar
+On apple categories build apple product items are also in the dropdown
+RESPONSIVE MOBILE
+-home page
+-product details page
+
+Improvents
+-Colors consistency
+-Burger color white
+
+-brands logo should be perfect
+-Showing filter should have apple item first priority
+
+- BUtton color consistent
