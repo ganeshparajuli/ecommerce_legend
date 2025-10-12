@@ -201,17 +201,55 @@ return rows;
 
 }
 
-  static async findById(id, includeDeleted = false) {
-    let query = "SELECT * FROM products WHERE id = ?";
-    const params = [id];
+  // static async findById(id, includeDeleted = false) {
+  //   let query = "SELECT * FROM products WHERE id = ?";
+  //   const params = [id];
 
-    if (!includeDeleted) {
-      query += " AND is_deleted = false";
-    }
+  //   if (!includeDeleted) {
+  //     query += " AND is_deleted = false";
+  //   }
 
-    const [rows] = await db.execute(query, params);
-    return rows[0];
+  //   const [rows] = await db.execute(query, params);
+  //   return rows[0];
+  // }
+
+static async findById(id, includeDeleted = false) {
+  let query = `
+    SELECT 
+      p.*, 
+      pv.id AS variant_id,
+      pv.actualPrice AS variant_actualPrice,
+      pv.discountPrice AS variant_discountPrice,
+      pv.finalPrice AS variant_finalPrice,
+      pv.quantity AS variant_quantity,
+      pv.product_id AS variant_product_id,
+      pv.storage AS variant_storage,
+      pv.size AS variant_size,
+      pv.color AS variant_color,
+      pv.originalPrice AS variant_originalPrice,
+      pv.is_deleted AS variant_is_deleted,
+      pv.created_at AS variant_created_at,
+      pv.updated_at AS variant_updated_at,
+      pv.deleted_at AS variant_deleted_at
+    FROM products p
+    LEFT JOIN product_variants pv 
+      ON p.id = pv.product_id
+  `;
+
+  const params = [id];
+  query += " WHERE p.id = ?";
+
+  if (!includeDeleted) {
+    query += `
+      AND p.is_deleted = false 
+      AND (pv.is_deleted = false OR pv.is_deleted IS NULL)
+    `;
   }
+
+  const [rows] = await db.execute(query, params);
+  return rows.length > 0 ? rows : null;
+}
+
 
   static async findBySKU(sku, includeDeleted = false) {
     let query = "SELECT * FROM products WHERE sku = ?";

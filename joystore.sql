@@ -7,7 +7,6 @@
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
-
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
@@ -21,14 +20,14 @@ SET time_zone = "+00:00";
 --
 -- Database: `joystore`
 --
-
--- --------------------------------------------------------
-
+DROP DATABASE if EXISTS joystore;
+CREATE DATABASE IF NOT EXISTS joystore;
+USE joystore;
 --
 -- Stand-in structure for view `active_products`
 -- (See below for the actual view)
 --
-CREATE TABLE `active_products` (
+CREATE TABLE IF NOT EXISTS `active_products` (
 `id` char(36)
 ,`name` varchar(255)
 ,`brand` varchar(255)
@@ -64,7 +63,7 @@ CREATE TABLE `active_products` (
 -- Table structure for table `brands`
 --
 
-CREATE TABLE `brands` (
+CREATE TABLE IF NOT EXISTS `brands` (
   `id` char(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `image` varchar(255) DEFAULT NULL,
@@ -80,7 +79,7 @@ CREATE TABLE `brands` (
 --
 
 INSERT INTO `brands` (`id`, `name`, `image`, `slug`, `description`, `featured`, `createdAt`, `updatedAt`) VALUES
-('00707dcb-d4e0-4e4d-9edf-0f221b570243', 'CVR', 'image-1748662133933-737685501.jpg', 'cvr', NULL, 0, '2025-05-31 03:28:53', '2025-05-31 03:28:53'),
+('00707dcb-d4e0-4e4d-9edf-0f221b770243', 'CVR', 'image-1748662133933-737685501.jpg', 'cvr', NULL, 0, '2025-05-31 03:28:53', '2025-05-31 03:28:53'),
 ('4474b0e9-103b-4853-811e-f7feb73406cf', 'Samsung', 'image-1748537964830.png', 'samsung', NULL, 0, '2025-05-21 19:39:23', '2025-05-29 16:59:24'),
 ('c2f80799-8392-4069-b2a6-94c1318f37a5', 'Marshall', 'image-1748537937044.png', 'marshall', NULL, 0, '2025-05-21 20:16:40', '2025-05-29 16:58:57'),
 ('fca9cb15-38a2-4caf-a1f0-d45d67c4e6f0', 'Apple', 'image-1748415871040.jpeg', 'apple', NULL, 0, '2025-05-21 19:39:03', '2025-05-28 07:04:31'),
@@ -92,7 +91,7 @@ INSERT INTO `brands` (`id`, `name`, `image`, `slug`, `description`, `featured`, 
 -- Table structure for table `cart_items`
 --
 
-CREATE TABLE `cart_items` (
+CREATE TABLE IF NOT EXISTS `cart_items` (
   `id` varchar(36) CHARACTER SET armscii8 COLLATE armscii8_general_ci NOT NULL,
   `user_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `product_id` varchar(36) NOT NULL,
@@ -114,7 +113,7 @@ CREATE TABLE `cart_items` (
 -- Table structure for table `categories`
 --
 
-CREATE TABLE `categories` (
+CREATE TABLE IF NOT EXISTS `categories` (
   `id` char(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `slug` varchar(100) DEFAULT NULL,
@@ -126,7 +125,8 @@ CREATE TABLE `categories` (
 --
 -- Table structure for table `categoriy_series`
 --
-CREATE TABLE `category_series` (
+
+CREATE TABLE IF NOT EXISTS `category_series` (
   `id` CHAR(36) NOT NULL,
   `category_id` CHAR(36) NOT NULL,
   `series_name` VARCHAR(255) NOT NULL,
@@ -135,24 +135,16 @@ CREATE TABLE `category_series` (
   `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-  CONSTRAINT `fk_category` FOREIGN KEY (`category_id`) 
-      REFERENCES `categories` (`id`) 
-      ON DELETE CASCADE ON UPDATE CASCADE,
-
-  CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) 
-      REFERENCES `products` (`id`) 
-      ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `category_series`
 --
 
-INSERT INTO `category_series` (`id`, `product_id`, `category_id`, `series_name`, `is_active`, `createdAt`, `updatedAt`) VALUES
-('a1b2c3d4-1111-2222-3333-abcdef123456', 'prod-iphone-001', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Series', TRUE, NOW(), NOW()),
-('b2c3d4e5-2222-3333-4444-bcdef1234567', 'prod-iphone-002', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Pro Series', TRUE, NOW(), NOW()),
-('c3d4e5f6-3333-4444-5555-cdef12345678', 'prod-iphone-003', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Series', TRUE, NOW(), NOW()),
-('d4e5f607-4444-5555-6666-def123456789', 'prod-iphone-004', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Pro Series', TRUE, NOW(), NOW());
+INSERT INTO `category_series` (`id`, `category_id`, `series_name`, `is_active`, `createdAt`, `updatedAt`) VALUES
+('a1b2c3d4-1111-2222-3333-abcdef123456', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Series', TRUE, NOW(), NOW()),
+('b2c3d4e5-2222-3333-4444-bcdef1234567', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 14 Pro Series', TRUE, NOW(), NOW()),
+('c3d4e5f6-3333-4444-5555-cdef12345678', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Series', TRUE, NOW(), NOW()),
+('d4e5f607-4444-5555-6666-def123456789', '6055cfec-f033-4a83-af72-00502a61d70d', 'Iphone 15 Pro Series', TRUE, NOW(), NOW());
 
 
 --
@@ -174,7 +166,7 @@ INSERT INTO `categories` (`id`, `name`, `slug`, `brandId`, `createdAt`, `updated
 -- Table structure for table `contacts`
 --
 
-CREATE TABLE `contacts` (
+CREATE TABLE IF NOT EXISTS `contacts` (
   `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `phone` varchar(20) NOT NULL,
@@ -198,7 +190,7 @@ INSERT INTO `contacts` (`id`, `name`, `phone`, `email`, `subject`, `message`, `c
 -- Stand-in structure for view `deleted_products`
 -- (See below for the actual view)
 --
-CREATE TABLE `deleted_products` (
+CREATE TABLE IF NOT EXISTS `deleted_products` (
 `id` char(36)
 ,`name` varchar(255)
 ,`brand` varchar(255)
@@ -234,7 +226,7 @@ CREATE TABLE `deleted_products` (
 -- Table structure for table `faqs`
 --
 
-CREATE TABLE `faqs` (
+CREATE TABLE IF NOT EXISTS `faqs` (
   `id` char(36) NOT NULL,
   `question` varchar(255) NOT NULL,
   `answer` text NOT NULL,
@@ -256,7 +248,7 @@ INSERT INTO `faqs` (`id`, `question`, `answer`, `order`, `created_at`, `updated_
 -- Table structure for table `newsletter_subscribers`
 --
 
-CREATE TABLE `newsletter_subscribers` (
+CREATE TABLE IF NOT EXISTS `newsletter_subscribers` (
   `id` varchar(36) NOT NULL,
   `email` varchar(255) NOT NULL,
   `name` varchar(255) DEFAULT NULL,
@@ -284,7 +276,7 @@ INSERT INTO `newsletter_subscribers` (`id`, `email`, `name`, `subscribed_at`, `s
 -- Table structure for table `notification_settings`
 --
 
-CREATE TABLE `notification_settings` (
+CREATE TABLE IF NOT EXISTS `notification_settings` (
   `id` varchar(36) NOT NULL,
   `order_confirmation` tinyint(1) DEFAULT 1,
   `order_delivery` tinyint(1) DEFAULT 1,
@@ -313,7 +305,7 @@ INSERT INTO `notification_settings` (`id`, `order_confirmation`, `order_delivery
 -- Table structure for table `orders`
 --
 
-CREATE TABLE `orders` (
+CREATE TABLE IF NOT EXISTS `orders` (
   `id` char(36) NOT NULL,
   `user_id` char(36) NOT NULL,
   `total_amount` decimal(10,2) NOT NULL,
@@ -366,7 +358,7 @@ INSERT INTO `orders` (`id`, `user_id`, `total_amount`, `shipping_address`, `paym
 -- Table structure for table `order_items`
 --
 
-CREATE TABLE `order_items` (
+CREATE TABLE IF NOT EXISTS `order_items` (
   `id` char(36) NOT NULL,
   `order_id` char(36) NOT NULL,
   `product_id` char(36) NOT NULL,
@@ -419,7 +411,7 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `quantity`, `price`, 
 -- Table structure for table `payments`
 --
 
-CREATE TABLE `payments` (
+CREATE TABLE IF NOT EXISTS `payments` (
   `id` char(36) NOT NULL,
   `order_id` char(36) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -430,7 +422,7 @@ CREATE TABLE `payments` (
 -- Table structure for table `products`
 --
 
-CREATE TABLE `products` (
+CREATE TABLE IF NOT EXISTS `products` (
   `id` char(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `brand` varchar(255) DEFAULT NULL,
@@ -465,34 +457,34 @@ CREATE TABLE `products` (
 -- Table structure for table `product_variants`
 --
 
-CREATE TABLE `product_variants` (
-  `id` char(36) NOT NULL,
-  `actualPrice` decimal(10,2) DEFAULT NULL,
-  `discountPrice` decimal(10,2) DEFAULT NULL,
-  `finalPrice` decimal(10,2) DEFAULT NULL,
-  `quantity` int(11) DEFAULT 0,
-  `product_id` char(36) NOT NULL,
+CREATE TABLE IF NOT EXISTS `product_variants` (
+  `id` CHAR(36) NOT NULL,
+  `actualPrice` DECIMAL(10,2) DEFAULT NULL,
+  `discountPrice` DECIMAL(10,2) DEFAULT NULL,
+  `finalPrice` DECIMAL(10,2) DEFAULT NULL,
+  `quantity` INT(11) DEFAULT 0,
+  `product_id` CHAR(36) NOT NULL,
   `storage` VARCHAR(50),
   `size` VARCHAR(50),
-  `color` varchar(50) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `originalPrice` decimal(10,2) DEFAULT NULL,
-  `is_deleted` tinyint(1) DEFAULT 0,
-  `deleted_at` timestamp NULL DEFAULT NULL,
+  `color` VARCHAR(50) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
+  `originalPrice` DECIMAL(10,2) DEFAULT NULL,
+  `is_deleted` TINYINT(1) DEFAULT 0,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 --
 -- Dumping data for table `product_variants`
 --
-INSERT INTO product_variants 
+INSERT INTO `product_variants` 
 (id, actualPrice, discountPrice, finalPrice, quantity, product_id, storage, size, color, created_at, updated_at, originalPrice, is_deleted, deleted_at)
 VALUES
-(UUID(), 156000.00, 0.00, 156000.00, 7, '62b03d50-7c89-4cc4-bb94-9df10a53i44a', '128 GB', NULL, 'Red', NOW(), NOW(), 156000.00, 0, NULL),
+(UUID(), 156000.00, 0.00, 156000.00, 7, '62b03d50-7c89-4cc4-bb94-9df10a53f44a', '128 GB', NULL, 'Red', NOW(), NOW(), 156000.00, 0, NULL),
 (UUID(), 212000.00, 0.00, 212000.00, 7, 'e271e16e-7ed7-46f5-889f-283290631663', '256 GB', NULL, 'Red', NOW(), NOW(), 212000.00, 0, NULL);
 
 
---testing product variant
 
 --
 -- Dumping data for table `products`
@@ -514,7 +506,7 @@ INSERT INTO `products` (`id`, `name`, `brand`, `category`, `description`, `actua
 -- Table structure for table `promocodes`
 --
 
-CREATE TABLE `promocodes` (
+CREATE TABLE IF NOT EXISTS `promocodes` (
   `id` varchar(36) NOT NULL,
   `code` varchar(20) NOT NULL,
   `description` text DEFAULT NULL,
@@ -545,7 +537,7 @@ INSERT INTO `promocodes` (`id`, `code`, `description`, `min_purchase`, `max_disc
 -- Table structure for table `reviews`
 --
 
-CREATE TABLE `reviews` (
+CREATE TABLE IF NOT EXISTS `reviews` (
   `id` int(11) NOT NULL,
   `product_id` int(11) NOT NULL,
   `reviewer_name` varchar(100) NOT NULL,
@@ -561,7 +553,7 @@ CREATE TABLE `reviews` (
 -- Table structure for table `sales`
 --
 
-CREATE TABLE `sales` (
+CREATE TABLE IF NOT EXISTS `sales` (
   `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -587,7 +579,7 @@ INSERT INTO `sales` (`id`, `name`, `description`, `discount_type`, `discount_val
 -- Table structure for table `sale_gift_products`
 --
 
-CREATE TABLE `sale_gift_products` (
+CREATE TABLE IF NOT EXISTS `sale_gift_products` (
   `id` varchar(36) NOT NULL,
   `sale_id` varchar(36) NOT NULL,
   `gift_product_id` varchar(36) NOT NULL,
@@ -612,7 +604,7 @@ INSERT INTO `sale_gift_products` (`id`, `sale_id`, `gift_product_id`, `gift_quan
 -- Table structure for table `sale_products`
 --
 
-CREATE TABLE `sale_products` (
+CREATE TABLE IF NOT EXISTS `sale_products` (
   `sale_id` varchar(36) NOT NULL,
   `product_id` varchar(36) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
@@ -632,7 +624,7 @@ INSERT INTO `sale_products` (`sale_id`, `product_id`, `created_at`) VALUES
 -- Table structure for table `sale_product_gifts`
 --
 
-CREATE TABLE `sale_product_gifts` (
+CREATE TABLE IF NOT EXISTS `sale_product_gifts` (
   `id` varchar(36) NOT NULL,
   `sale_id` varchar(36) NOT NULL,
   `main_product_id` varchar(36) NOT NULL,
@@ -650,7 +642,7 @@ CREATE TABLE `sale_product_gifts` (
 -- Table structure for table `services`
 --
 
-CREATE TABLE `services` (
+CREATE TABLE IF NOT EXISTS `services` (
   `id` int(11) NOT NULL,
   `name` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
@@ -666,7 +658,7 @@ CREATE TABLE `services` (
 -- Table structure for table `splash_screens`
 --
 
-CREATE TABLE `splash_screens` (
+CREATE TABLE IF NOT EXISTS `splash_screens` (
   `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -690,7 +682,7 @@ CREATE TABLE `splash_screens` (
 -- Table structure for table `store_settings`
 --
 
-CREATE TABLE `store_settings` (
+CREATE TABLE IF NOT EXISTS `store_settings` (
   `id` varchar(36) NOT NULL,
   `store_name` varchar(100) NOT NULL,
   `store_email` varchar(255) NOT NULL,
@@ -722,7 +714,7 @@ INSERT INTO `store_settings` (`id`, `store_name`, `store_email`, `store_phone`, 
 -- Table structure for table `users`
 --
 
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
   `id` char(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
@@ -754,7 +746,7 @@ INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `image`, `phone`
 -- Table structure for table `wishlists`
 --
 
-CREATE TABLE `wishlists` (
+CREATE TABLE IF NOT EXISTS `wishlists` (
   `id` char(36) NOT NULL,
   `user_id` char(36) NOT NULL,
   `product_id` varchar(36) CHARACTER SET armscii8 COLLATE armscii8_general_ci NOT NULL,
@@ -1007,16 +999,20 @@ ALTER TABLE `categories`
 --
 ALTER TABLE `category_series`
   ADD CONSTRAINT `fk_category_series_category`
-  FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  FOREIGN KEY (`category_id`)
+  REFERENCES `categories` (`id`)
+  ON DELETE CASCADE
+  ON UPDATE CASCADE;
 
 --
 -- Constraints for table `product_variants`
 --
-ALTER TABLE `product_variants`
+  ALTER TABLE `product_variants`
   ADD CONSTRAINT `fk_product_variants_product`
   FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-  ON DELETE CASCADE ON UPDATE CASCADE;
+  ON DELETE CASCADE
+  ON UPDATE CASCADE;
+
 
 --
 -- Constraints for table `orders`
