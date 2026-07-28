@@ -32,24 +32,15 @@ const safeClone = (data: any): any => {
   }
 };
 
-// Order data interface
+// Order data interface - matches the backend contract exactly. Price/total/discount are
+// always computed server-side from the current variant price, never trusted from the client.
 interface OrderData {
-  user_id?: string;
-  total_amount?: number;
-  totalPrice?: number;
-  shipping_address?: any;
-  shippingInfo?: any;
-  payment_method?: string;
-  paymentMethod?: string;
-  promo_code?: string;
-  discount_amount?: number;
+  shippingAddress: Record<string, any>;
+  paymentMethod: string;
+  promoCode?: string | null;
   orderItems: Array<{
-    product?: any;
-    product_id?: string;
-    name?: string;
-    image?: string;
-    price?: number;
-    quantity?: number;
+    productVariantId: string;
+    quantity: number;
   }>;
 }
 
@@ -67,118 +58,35 @@ interface OrderError {
   success: false;
   error: string;
 }
-// Create a new order
+// Create a new order. Auth is handled by the api client's request interceptor
+// (Authorization header) - the server derives the user from the JWT, never from the body.
 export const createOrder = (orderData: OrderData) => async (dispatch: Dispatch): Promise<OrderSuccess | OrderError> => {
   try {
     dispatch({ type: CreateOrder.Request });
 
-    console.log("=== ORDER CREATION DEBUG START ===");
-    
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("No authentication token found");
-      dispatch({
-        type: CreateOrder.Fail,
-        payload: "Authentication required. Please log in again.",
-      });
-      return { success: false, error: "Authentication required" };
-    }
-
-    let userId: string | null = null;
-    try {
-      userId = getUserIdFromToken(token);
-      console.log("User ID extracted from token:", userId);
-    } catch (e) {
-      console.log("Error getting user ID from token:", e);
-    }
-
-    if (!userId) {
-      console.error("Could not determine user ID from token");
-      dispatch({
-        type: CreateOrder.Fail,
-        payload: "Invalid authentication token. Please log in again.",
-      });
-      return { success: false, error: "Invalid authentication token" };
-    }
-
-    console.log("✅ Using user ID:", userId);
-
-    const transformedOrderData = {
-      user_id: userId,
-      total_amount: orderData.total_amount || orderData.totalPrice,
-      shipping_address: orderData.shipping_address || orderData.shippingInfo,
-      payment_method: orderData.payment_method || orderData.paymentMethod,
-      promo_code: orderData.promo_code,
-      discount_amount: orderData.discount_amount,
-      orderItems: orderData.orderItems.map((item) => ({
-        product_id: item.product_id || (item.product && typeof item.product === 'object' ? item.product.id : item.product) || "",
-        quantity: parseInt(String(item.quantity || 1), 10),
-        price: parseFloat(String(item.price || 0)),
-      })),
-    };
-
-    console.log("📤 Sending order data:", transformedOrderData);
-
-    // 🔥 FIX: Use correct endpoint for your backend
-    const { data } = await api.post("order/", transformedOrderData, {  // Your backend uses /api/order
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    console.log("📥 Backend response:", data);
+    const { data } = await api.post("order/", orderData);
+    const order = data.data;
 
     await dispatch(clearCart() as any);
     dispatch({ type: ClearCart.Success });
     dispatch({
       type: CreateOrder.Success,
-      payload: data,
+      payload: order,
     });
 
-    return { 
-      success: true, 
-      orderData: {
-        ...transformedOrderData,
-        id: data.order_id
-      }
-    };
+    return { success: true, orderData: order };
   } catch (error) {
-    console.error("❌ Order creation error:", error);
+    console.error("Order creation error:", error);
     dispatch({
       type: CreateOrder.Fail,
       payload: getErrorMessage(error),
     });
-    return { 
-      success: false, 
-      error: getErrorMessage(error)
+    return {
+      success: false,
+      error: getErrorMessage(error),
     };
   }
 };
-// Helper function to extract user ID from token
-function getUserIdFromToken(token: string): string | null {
-  try {
-    if (!token) return null;
-
-    // Decode JWT token to get the user ID
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map(function (c) {
-          return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join("")
-    );
-
-    const decodedToken = JSON.parse(jsonPayload);
-    return decodedToken.id || decodedToken.sub || decodedToken.user_id || null;
-  } catch (e) {
-    console.error("Error decoding token:", e);
-    return null;
-  }
-}
 
 // Get logged in user orders
 export const myOrders = (id: string) => async (dispatch: Dispatch): Promise<void> => {
@@ -195,7 +103,7 @@ export const myOrders = (id: string) => async (dispatch: Dispatch): Promise<void
     // CRITICAL FIX: Deep clone the orders data before dispatching
     dispatch({
       type: MyOrders.Success,
-      payload: safeClone(data.orders),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({
@@ -228,9 +136,8 @@ export const getOrderDetails = (id: string) => async (dispatch: Dispatch): Promi
 
     dispatch({
       type: OrderDetails.Success,
-      payload: data.order,
+      payload: data.data,
     });
-    console.log("Orders fetched successfully:", data.order);
   } catch (error) {
     console.error("Error fetching orders:", error);
     dispatch({
@@ -249,7 +156,7 @@ export const getAllOrders = () => async (dispatch: Dispatch): Promise<void> => {
 
     dispatch({
       type: AllOrders.Success,
-      payload: data.orders,
+      payload: data.data,
     });
   } catch (error) {
     dispatch({

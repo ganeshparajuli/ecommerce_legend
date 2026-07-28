@@ -12,7 +12,10 @@ router.post("/", wishlistController.addToWishlist);
 // Get all wishlist items for the logged-in user
 router.get("/", wishlistController.getWishlist);
 
-// Remove an item from the wishlist
+// Remove an item from the wishlist by product ID - literal path before "/:id"
+router.delete("/product/:productId", wishlistController.removeProductFromWishlist);
+
+// Remove an item from the wishlist by wishlist entry ID
 router.delete("/:id", wishlistController.removeFromWishlist);
 
 // Clear the entire wishlist

@@ -1,1031 +1,458 @@
-const Product = require("../model/productModel");
+const { Op } = require("sequelize");
+const { Product, ProductImage, ProductVariant, Brand, Category, sequelize } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// Create a new product
-exports.createProduct = async (req, res) => {
+const PRODUCT_INCLUDES = [
+  { model: ProductImage, as: "images", separate: true, order: [["sortOrder", "ASC"]] },
+  { model: ProductVariant, as: "variants", separate: true, order: [["createdAt", "ASC"]] },
+  { model: Brand, as: "brand" },
+  { model: Category, as: "category" },
+];
+
+function serializeProduct(product) {
+  return {
+    ...product.toJSON(),
+    priceRange: product.priceRange,
+    defaultVariant: product.defaultVariant,
+  };
+}
+
+function parseJsonField(field, fallback) {
+  if (field === undefined) return undefined;
+  if (typeof field !== "string") return field;
   try {
-    console.log("Received product data:", req.body);
-    console.log("Uploaded files:", req.files);
+    return JSON.parse(field);
+  } catch {
+    return fallback;
+  }
+}
 
-    // Convert [Object: null prototype] to a regular object
-    const productData = Object.assign({}, req.body);
-
-    // Extract all fields from request body including new model fields
-    const {
-      name,
-      brand,
-      category,
-      description,
+function parseVariantsInput(rawVariants) {
+  const variants = parseJsonField(rawVariants, []);
+  if (!Array.isArray(variants) || variants.length === 0) {
+    throw new ApiError(400, "At least one variant (with a price) is required");
+  }
+  return variants.map((v, index) => {
+    const price = Number(v.price);
+    if (!Number.isFinite(price) || price < 0) {
+      throw new ApiError(400, `Variant ${index + 1}: a valid non-negative price is required`);
+    }
+    const compareAtPrice =
+      v.compareAtPrice !== undefined && v.compareAtPrice !== null && v.compareAtPrice !== ""
+        ? Number(v.compareAtPrice)
+        : null;
+    return {
+      id: v.id, // present when updating an existing variant
+      sku: v.sku || undefined,
       price,
-      actualPrice,
-      discountPrice,
-      finalPrice,
-      originalPrice,
-      stock,
-      quantity,
-      is_featured,
-      featured,
-      color,
-      sku,
-      keyFeatures,
-      specifications,
-      productDetails,
-      rating,
-      reviewCount,
-      availability,
-      tags,
-    } = productData;
-
-    // Validate required fields
-    if (!name || name.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        error: "Product name is required",
-      });
-    }
-
-    // Handle different price field names
-    const productPrice = finalPrice || price || actualPrice || 0;
-    const numPrice = parseFloat(productPrice);
-
-    if (!numPrice || numPrice <= 0 || isNaN(numPrice)) {
-      return res.status(400).json({
-        success: false,
-        error: "Valid product price is required",
-      });
-    }
-
-    // FIXED: Process uploaded images for upload.fields() structure
-    let imageData = null;
-    const allImages = [];
-
-    if (req.files) {
-      // Handle different field names from upload.fields()
-      if (req.files.images) {
-        const images = Array.isArray(req.files.images)
-          ? req.files.images
-          : [req.files.images];
-        allImages.push(...images);
-      }
-
-      if (req.files.image) {
-        const images = Array.isArray(req.files.image)
-          ? req.files.image
-          : [req.files.image];
-        allImages.push(...images);
-      }
-
-      if (allImages.length > 0) {
-        // Use relative paths that match your actual file structure
-        const imagePaths = allImages.map((file) => `uploads/${file.filename}`);
-        imageData = JSON.stringify(imagePaths);
-        console.log("Processed image paths:", imagePaths);
-      }
-    }
-
-    // Parse JSON fields if they come as strings
-    const parseJsonField = (field) => {
-      if (!field) return null;
-      if (typeof field === "string") {
-        try {
-          return JSON.parse(field);
-        } catch (e) {
-          console.error(`Error parsing field: ${e.message}`);
-          return field;
-        }
-      }
-      return field;
+      compareAtPrice: compareAtPrice !== null && compareAtPrice > price ? compareAtPrice : null,
+      quantity: Number.isFinite(Number(v.quantity)) ? parseInt(v.quantity, 10) : 0,
+      attributes: v.attributes && typeof v.attributes === "object" ? v.attributes : {},
+      isDefault: !!v.isDefault,
     };
+  });
+}
 
-    // Prepare data for the model with all fields
-    const modelData = {
-      name: name.trim(),
-      brand: brand || null,
-      category: category || null,
-      description: description || null,
-      actualPrice: actualPrice ? parseFloat(actualPrice) : numPrice,
-      discountPrice: discountPrice ? parseFloat(discountPrice) : null,
-      finalPrice: finalPrice ? parseFloat(finalPrice) : numPrice,
-      originalPrice: originalPrice ? parseFloat(originalPrice) : null,
-      quantity: parseInt(stock || quantity) || 0,
-      featured:
-        is_featured === true ||
-        is_featured === "true" ||
-        featured === true ||
-        featured === "true",
-      image: imageData, // This will now contain the JSON array of image paths
-      color: color || null,
-      // New fields
-      sku: sku || null, // Model will auto-generate if null
-      keyFeatures: parseJsonField(keyFeatures) || [],
-      specifications: parseJsonField(specifications) || {},
-      productDetails: productDetails || description || null,
-      rating: rating ? parseFloat(rating) : 0,
-      reviewCount: reviewCount ? parseInt(reviewCount) : 0,
-      availability: availability || "In Stock",
-      tags: parseJsonField(tags) || [],
-    };
-
-    console.log("Processed product data for model:", modelData);
-    console.log("Image data being saved:", imageData);
-
-    const result = await Product.create(modelData);
-
-    res.status(201).json({
-      success: true,
-      message: "Product created successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error creating product:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
+function collectUploadedImagePaths(files) {
+  if (!files) return [];
+  const groups = ["images", "newImages", "image"];
+  const uploaded = [];
+  for (const group of groups) {
+    if (files[group]) {
+      const list = Array.isArray(files[group]) ? files[group] : [files[group]];
+      uploaded.push(...list);
+    }
   }
-};
+  return uploaded.map((f) => `uploads/${f.filename}`);
+}
 
-// Update product
-exports.updateProduct = async (req, res) => {
-  try {
-    const productId = req.params.id;
-    console.log("Updating product ID:", productId);
-    console.log("Request body:", req.body);
-    console.log("Files received:", req.files);
+exports.createProduct = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["name"]);
+  const variantsInput = parseVariantsInput(req.body.variants);
+  const newImagePaths = collectUploadedImagePaths(req.files);
 
-    // Get the existing product first
-    const existingProduct = await Product.findById(productId);
-    if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found",
-      });
+  const product = await sequelize.transaction(async (t) => {
+    const created = await Product.create(
+      {
+        name: req.body.name.trim(),
+        brandId: req.body.brandId || null,
+        categoryId: req.body.categoryId || null,
+        description: req.body.description || null,
+        productDetails: req.body.productDetails || req.body.description || null,
+        keyFeatures: parseJsonField(req.body.keyFeatures, []) || [],
+        specifications: parseJsonField(req.body.specifications, {}) || {},
+        tags: parseJsonField(req.body.tags, []) || [],
+        availability: req.body.availability || "In Stock",
+        isFeatured: req.body.isFeatured === true || req.body.isFeatured === "true",
+        sku: req.body.sku || undefined,
+      },
+      { transaction: t }
+    );
+
+    await Promise.all(
+      newImagePaths.map((url, index) =>
+        ProductImage.create(
+          { productId: created.id, url, sortOrder: index, isPrimary: index === 0 },
+          { transaction: t }
+        )
+      )
+    );
+
+    await Promise.all(
+      variantsInput.map((v, index) =>
+        ProductVariant.create(
+          {
+            productId: created.id,
+            sku: v.sku,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice,
+            quantity: v.quantity,
+            attributes: v.attributes,
+            isDefault: v.isDefault || index === 0,
+          },
+          { transaction: t }
+        )
+      )
+    );
+
+    return created;
+  });
+
+  const full = await Product.findByPk(product.id, { include: PRODUCT_INCLUDES });
+  sendSuccess(res, { status: 201, message: "Product created successfully", data: serializeProduct(full) });
+});
+
+exports.updateProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) throw new ApiError(404, "Product not found");
+
+  const updates = {};
+  const directFields = [
+    "description",
+    "productDetails",
+    "availability",
+    "sku",
+  ];
+  for (const field of directFields) {
+    if (req.body[field] !== undefined) updates[field] = req.body[field];
+  }
+  if (req.body.name !== undefined) updates.name = req.body.name.trim();
+  if (req.body.brandId !== undefined) updates.brandId = req.body.brandId || null;
+  if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId || null;
+  if (req.body.isFeatured !== undefined) {
+    updates.isFeatured = req.body.isFeatured === true || req.body.isFeatured === "true";
+  }
+  if (req.body.keyFeatures !== undefined) updates.keyFeatures = parseJsonField(req.body.keyFeatures, []);
+  if (req.body.specifications !== undefined) updates.specifications = parseJsonField(req.body.specifications, {});
+  if (req.body.tags !== undefined) updates.tags = parseJsonField(req.body.tags, []);
+
+  await sequelize.transaction(async (t) => {
+    await product.update(updates, { transaction: t });
+
+    // Images: `existingImages` (JSON array of URLs to keep) + newly uploaded files, mirroring the create flow.
+    const newImagePaths = collectUploadedImagePaths(req.files);
+    if (req.body.existingImages !== undefined || newImagePaths.length) {
+      const keepUrls = new Set(parseJsonField(req.body.existingImages, []) || []);
+      const currentImages = await ProductImage.findAll({ where: { productId: product.id }, transaction: t });
+      await Promise.all(
+        currentImages
+          .filter((img) => !keepUrls.has(img.url))
+          .map((img) => img.destroy({ transaction: t }))
+      );
+      const keptCount = currentImages.filter((img) => keepUrls.has(img.url)).length;
+      await Promise.all(
+        newImagePaths.map((url, i) =>
+          ProductImage.create(
+            { productId: product.id, url, sortOrder: keptCount + i, isPrimary: keptCount + i === 0 },
+            { transaction: t }
+          )
+        )
+      );
     }
 
-    // Convert [Object: null prototype] to a regular object
-    const productData = Object.assign({}, req.body);
+    // Variants: when provided, the submitted list is the full desired state - update existing,
+    // create new, soft-delete any that were removed from the list.
+    if (req.body.variants !== undefined) {
+      const variantsInput = parseVariantsInput(req.body.variants);
+      const existingVariants = await ProductVariant.findAll({ where: { productId: product.id }, transaction: t });
+      const submittedIds = new Set(variantsInput.filter((v) => v.id).map((v) => v.id));
 
-    // Parse JSON fields if they come as strings
-    const parseJsonField = (field) => {
-      if (!field) return undefined;
-      if (typeof field === "string") {
-        try {
-          return JSON.parse(field);
-        } catch (e) {
-          return field;
-        }
-      }
-      return field;
-    };
+      await Promise.all(
+        existingVariants
+          .filter((v) => !submittedIds.has(v.id))
+          .map((v) => v.destroy({ transaction: t }))
+      );
 
-    // Build the update data object - only include fields that are provided
-    const updateData = {};
-
-    // Basic fields
-    if (productData.name !== undefined)
-      updateData.name = productData.name.trim();
-    if (productData.brand !== undefined)
-      updateData.brand = productData.brand || null;
-    if (productData.category !== undefined)
-      updateData.category = productData.category || null;
-    if (productData.description !== undefined)
-      updateData.description = productData.description || null;
-    if (productData.color !== undefined)
-      updateData.color = productData.color || null;
-
-    // Price fields
-    if (productData.actualPrice !== undefined)
-      updateData.actualPrice = parseFloat(productData.actualPrice) || null;
-    if (productData.discountPrice !== undefined)
-      updateData.discountPrice = parseFloat(productData.discountPrice) || null;
-    if (productData.finalPrice !== undefined)
-      updateData.finalPrice = parseFloat(productData.finalPrice) || null;
-    if (productData.originalPrice !== undefined)
-      updateData.originalPrice = parseFloat(productData.originalPrice) || null;
-
-    // Quantity
-    if (productData.quantity !== undefined || productData.stock !== undefined) {
-      updateData.quantity =
-        parseInt(productData.quantity || productData.stock) || 0;
+      await Promise.all(
+        variantsInput.map(async (v, index) => {
+          const payload = {
+            sku: v.sku,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice,
+            quantity: v.quantity,
+            attributes: v.attributes,
+            isDefault: v.isDefault || (index === 0 && !variantsInput.some((x) => x.isDefault)),
+          };
+          if (v.id) {
+            const existing = existingVariants.find((e) => e.id === v.id);
+            if (existing) return existing.update(payload, { transaction: t });
+          }
+          return ProductVariant.create({ ...payload, productId: product.id }, { transaction: t });
+        })
+      );
     }
+  });
 
-    // Featured flag
-    if (
-      productData.featured !== undefined ||
-      productData.is_featured !== undefined
-    ) {
-      const featured = productData.featured || productData.is_featured;
-      updateData.featured =
-        featured === "1" ||
-        featured === 1 ||
-        featured === true ||
-        featured === "true";
-    }
+  const full = await Product.findByPk(product.id, { include: PRODUCT_INCLUDES });
+  sendSuccess(res, { message: "Product updated successfully", data: serializeProduct(full) });
+});
 
-    // New fields
-    if (productData.sku !== undefined) updateData.sku = productData.sku;
-    if (productData.keyFeatures !== undefined)
-      updateData.keyFeatures = parseJsonField(productData.keyFeatures);
-    if (productData.specifications !== undefined)
-      updateData.specifications = parseJsonField(productData.specifications);
-    if (productData.productDetails !== undefined)
-      updateData.productDetails = productData.productDetails;
-    if (productData.rating !== undefined)
-      updateData.rating = parseFloat(productData.rating);
-    if (productData.reviewCount !== undefined)
-      updateData.reviewCount = parseInt(productData.reviewCount);
-    if (productData.availability !== undefined)
-      updateData.availability = productData.availability;
-    if (productData.tags !== undefined)
-      updateData.tags = parseJsonField(productData.tags);
+exports.getAllProducts = asyncHandler(async (req, res) => {
+  const { status, includeDeleted, brandId, categoryId, featured } = req.query;
+  const where = {};
+  if (brandId) where.brandId = brandId;
+  if (categoryId) where.categoryId = categoryId;
+  if (featured === "true") where.isFeatured = true;
 
-    // FIXED: Handle image uploads for update
-    let finalImages = [];
+  let paranoid = true;
+  if (status === "deleted") {
+    where.deletedAt = { [Op.ne]: null };
+    paranoid = false;
+  } else if (includeDeleted === "true") {
+    paranoid = false;
+  }
 
-    // 1. Handle existing images that should be kept
-    if (productData.existingImages) {
-      try {
-        const imagesToKeep = JSON.parse(productData.existingImages);
-        finalImages = [...imagesToKeep];
-        console.log("Keeping existing images:", imagesToKeep);
-      } catch (e) {
-        console.error("Error parsing existingImages:", e);
-      }
-    }
+  const products = await Product.findAll({
+    where,
+    include: PRODUCT_INCLUDES,
+    paranoid,
+    order: [["createdAt", "DESC"]],
+  });
 
-    // 2. Handle new uploaded images
-    const allNewImages = [];
-    if (req.files) {
-      // Handle images field
-      if (req.files.images) {
-        const images = Array.isArray(req.files.images)
-          ? req.files.images
-          : [req.files.images];
-        allNewImages.push(...images);
-      }
+  sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });
+});
 
-      // Handle newImages field
-      if (req.files.newImages) {
-        const images = Array.isArray(req.files.newImages)
-          ? req.files.newImages
-          : [req.files.newImages];
-        allNewImages.push(...images);
-      }
+exports.getFeaturedProducts = asyncHandler(async (req, res) => {
+  const products = await Product.findAll({
+    where: { isFeatured: true },
+    include: PRODUCT_INCLUDES,
+    order: [["createdAt", "DESC"]],
+  });
+  sendSuccess(res, { data: products.map(serializeProduct) });
+});
 
-      // Handle image field (backward compatibility)
-      if (req.files.image) {
-        const images = Array.isArray(req.files.image)
-          ? req.files.image
-          : [req.files.image];
-        allNewImages.push(...images);
-      }
+exports.searchProducts = asyncHandler(async (req, res) => {
+  const { name, brandId, categoryId, minPrice, maxPrice, inStock } = req.query;
+  const where = {};
+  if (name) where.name = { [Op.iLike]: `%${name}%` };
+  if (brandId) where.brandId = brandId;
+  if (categoryId) where.categoryId = categoryId;
 
-      if (allNewImages.length > 0) {
-        const newImagePaths = allNewImages.map(
-          (file) => `uploads/${file.filename}`
+  const variantWhere = {};
+  if (minPrice) variantWhere.price = { ...variantWhere.price, [Op.gte]: parseFloat(minPrice) };
+  if (maxPrice) variantWhere.price = { ...variantWhere.price, [Op.lte]: parseFloat(maxPrice) };
+  if (inStock === "true") variantWhere.quantity = { [Op.gt]: 0 };
+
+  const products = await Product.findAll({
+    where,
+    include: [
+      ...PRODUCT_INCLUDES.filter((i) => i.as !== "variants"),
+      { model: ProductVariant, as: "variants", where: Object.keys(variantWhere).length ? variantWhere : undefined, required: Object.keys(variantWhere).length > 0 },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
+
+  sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });
+});
+
+exports.getProductById = asyncHandler(async (req, res) => {
+  const includeDeleted = req.query.includeDeleted === "true";
+  const product = await Product.findByPk(req.params.id, {
+    include: PRODUCT_INCLUDES,
+    paranoid: !includeDeleted,
+  });
+  if (!product) throw new ApiError(404, "Product not found");
+  sendSuccess(res, {
+    data: { ...serializeProduct(product), status: product.deletedAt ? "deleted" : "active" },
+  });
+});
+
+exports.getProductBySKU = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ where: { sku: req.params.sku }, include: PRODUCT_INCLUDES });
+  if (!product) throw new ApiError(404, "Product not found");
+  sendSuccess(res, { data: serializeProduct(product) });
+});
+
+exports.getProductsByCategory = asyncHandler(async (req, res) => {
+  const products = await Product.findAll({
+    where: { categoryId: req.params.categoryId },
+    include: PRODUCT_INCLUDES,
+  });
+  sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });
+});
+
+exports.updateProductRating = asyncHandler(async (req, res) => {
+  const { rating, reviewCount } = req.body;
+  requireFields(req.body, ["rating", "reviewCount"]);
+  const newRating = parseFloat(rating);
+  if (isNaN(newRating) || newRating < 0 || newRating > 5) {
+    throw new ApiError(400, "Rating must be between 0 and 5");
+  }
+  const product = await Product.findByPk(req.params.id);
+  if (!product) throw new ApiError(404, "Product not found");
+  await product.update({ rating: newRating, reviewCount: parseInt(reviewCount, 10) });
+  sendSuccess(res, { message: "Product rating updated successfully", data: { id: product.id, rating: newRating, reviewCount } });
+});
+
+exports.updateProductStock = asyncHandler(async (req, res) => {
+  const { quantity, variantId } = req.body;
+  if (quantity === undefined || isNaN(parseInt(quantity, 10))) {
+    throw new ApiError(400, "Valid quantity is required");
+  }
+  const variants = await ProductVariant.findAll({ where: { productId: req.params.id } });
+  if (!variants.length) throw new ApiError(404, "Product not found or has no variants");
+
+  const target = variantId ? variants.find((v) => v.id === variantId) : variants[0];
+  if (!target) throw new ApiError(404, "Variant not found");
+  if (!variantId && variants.length > 1) {
+    throw new ApiError(400, "Product has multiple variants - specify variantId");
+  }
+
+  await target.update({ quantity: parseInt(quantity, 10) });
+  sendSuccess(res, { message: "Stock updated successfully", data: { variantId: target.id, quantity: target.quantity } });
+});
+
+async function countDependencies(productId) {
+  const { CartItem, OrderItem, SaleProduct, SaleGiftProduct, SaleProductGift } = require("../models");
+  const [cartItems, orderItems, saleProducts, saleGiftAsGift, saleProductGiftAsMain, saleProductGiftAsGift] =
+    await Promise.all([
+      CartItem.count({ where: { productId } }),
+      OrderItem.count({ where: { productId } }),
+      SaleProduct.count({ where: { productId } }),
+      SaleGiftProduct.count({ where: { giftProductId: productId } }),
+      SaleProductGift.count({ where: { mainProductId: productId } }),
+      SaleProductGift.count({ where: { giftProductId: productId } }),
+    ]);
+  const dependencies = {
+    cartItems,
+    orderItems,
+    saleProducts,
+    saleGifts: saleGiftAsGift + saleProductGiftAsMain + saleProductGiftAsGift,
+  };
+  const total = Object.values(dependencies).reduce((sum, n) => sum + n, 0);
+  return { dependencies, total, canDelete: total === 0 };
+}
+
+exports.checkProductDependencies = asyncHandler(async (req, res) => {
+  const result = await countDependencies(req.params.id);
+  sendSuccess(res, {
+    data: {
+      productId: req.params.id,
+      canHardDelete: result.canDelete,
+      totalDependencies: result.total,
+      dependencies: result.dependencies,
+      recommendation: result.canDelete ? "Safe to hard delete" : "Use soft delete - has dependent records",
+    },
+  });
+});
+
+exports.deleteProduct = asyncHandler(async (req, res) => {
+  const { hard = false, force = false } = req.body;
+  const product = await Product.findByPk(req.params.id, { paranoid: false });
+  if (!product) throw new ApiError(404, "Product not found");
+
+  if (hard) {
+    if (!force) {
+      const check = await countDependencies(product.id);
+      if (!check.canDelete) {
+        throw new ApiError(
+          409,
+          `Cannot permanently delete: ${check.total} dependent record(s) found. Use soft delete or force=true.`
         );
-        finalImages = [...finalImages, ...newImagePaths];
-        console.log("Adding new images:", newImagePaths);
       }
     }
-
-    // Update image data if there are any images
-    if (finalImages.length > 0 || allNewImages.length > 0) {
-      updateData.image = JSON.stringify(finalImages);
-      console.log("Final image array:", finalImages);
-    }
-
-    console.log("Final update data:", updateData);
-    const result = await Product.update(productId, updateData);
-
-    res.json({
-      success: true,
-      message: "Product updated successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error updating product:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
+    await product.destroy({ force: true });
+    return sendSuccess(res, { message: "Product permanently deleted", data: { id: product.id, type: "hard_delete" } });
   }
-};
 
-// Get all products
-exports.getAllProducts = async (req, res) => {
-  try {
-    const products = await Product.findAll();
-    res.json({
-      success: true,
-      data: products,
-    });
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
+  if (product.deletedAt) throw new ApiError(400, "Product is already deleted");
+  await product.update({ deletedReason: req.body.reason || "Deleted by admin" });
+  await product.destroy(); // paranoid soft-delete
+  sendSuccess(res, { message: "Product deleted successfully (can be restored)", data: { id: product.id, type: "soft_delete" } });
+});
+
+exports.restoreProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findByPk(req.params.id, { paranoid: false });
+  if (!product || !product.deletedAt) throw new ApiError(404, "Product not found or not deleted");
+  await product.restore();
+  await product.update({ deletedReason: null });
+  sendSuccess(res, { message: "Product restored successfully", data: { id: product.id } });
+});
+
+exports.getDeletedProducts = asyncHandler(async (req, res) => {
+  const products = await Product.findAll({
+    where: { deletedAt: { [Op.ne]: null } },
+    paranoid: false,
+    include: PRODUCT_INCLUDES,
+    order: [["deletedAt", "DESC"]],
+  });
+  sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });
+});
+
+exports.bulkDeleteProducts = asyncHandler(async (req, res) => {
+  const { productIds, hard = false, force = false, reason } = req.body;
+  if (!Array.isArray(productIds) || !productIds.length) {
+    throw new ApiError(400, "Product IDs array is required");
   }
-};
-
-// Get product by ID
-exports.getProductById = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found",
-      });
-    }
-    res.json({
-      success: true,
-      data: product,
-    });
-  } catch (err) {
-    console.error("Error fetching product:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Get product by SKU
-exports.getProductBySKU = async (req, res) => {
-  try {
-    const product = await Product.findBySKU(req.params.sku);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found",
-      });
-    }
-    res.json({
-      success: true,
-      data: product,
-    });
-  } catch (err) {
-    console.error("Error fetching product by SKU:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-
-
-// ENHANCED: Delete product with soft delete support
-exports.deleteProduct = async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const {
-      hard = false,
-      reason = "Deleted by admin",
-      force = false,
-    } = req.body;
-
-    console.log(`Delete request for product ${productId}:`, {
-      hard,
-      reason,
-      force,
-    });
-
-    // Check if product exists
-    const existingProduct = await Product.findById(productId, true); // Include deleted
-    if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found",
-      });
-    }
-
-    // If already deleted and not forcing
-    if (existingProduct.is_deleted && !force) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Product is already deleted. Use restore endpoint to restore it.",
-        data: {
-          productId,
-          deletedAt: existingProduct.deleted_at,
-          deletedReason: existingProduct.deleted_reason,
-        },
-      });
-    }
-
+  const results = { successful: [], failed: [] };
+  for (const id of productIds) {
     try {
+      const product = await Product.findByPk(id, { paranoid: false });
+      if (!product) throw new Error("Not found");
       if (hard) {
-        // Attempt hard delete
         if (!force) {
-          // Check dependencies first
-          const dependencyCheck = await Product.canHardDelete(productId);
-
-          if (!dependencyCheck.canDelete) {
-            return res.status(409).json({
-              success: false,
-              error: "Cannot permanently delete this product",
-              message: `This product has ${dependencyCheck.totalDependencies} dependent records that prevent deletion.`,
-              dependencies: dependencyCheck.dependencies,
-              suggestion:
-                "Use soft delete instead, or resolve dependencies first.",
-              alternatives: {
-                softDelete: `/api/product/${productId}`,
-                checkDependencies: `/api/product/${productId}/dependencies`,
-              },
-            });
-          }
+          const check = await countDependencies(id);
+          if (!check.canDelete) throw new Error(`${check.total} dependent record(s)`);
         }
-
-        await Product.hardDelete(productId, force);
-
-        res.json({
-          success: true,
-          message: "Product permanently deleted successfully",
-          data: {
-            id: productId,
-            type: "hard_delete",
-            forced: force,
-          },
-        });
+        await product.destroy({ force: true });
       } else {
-        // Soft delete
-        const result = await Product.softDelete(productId, reason);
-
-        res.json({
-          success: true,
-          message: "Product deleted successfully (can be restored)",
-          data: {
-            ...result,
-            type: "soft_delete",
-            restoreEndpoint: `/api/product/${productId}/restore`,
-          },
-        });
+        await product.update({ deletedReason: reason || "Bulk delete operation" });
+        await product.destroy();
       }
-    } catch (deleteError) {
-      console.error("Delete operation failed:", deleteError);
-
-      if (deleteError.message.includes("dependent records")) {
-        return res.status(409).json({
-          success: false,
-          error: "Cannot delete product due to dependencies",
-          message: deleteError.message,
-          suggestion: "Use soft delete instead",
-          alternatives: {
-            softDelete: {
-              method: "DELETE",
-              url: `/api/product/${productId}`,
-              body: { hard: false, reason: "Product with dependencies" },
-            },
-          },
-        });
-      }
-
-      throw deleteError;
+      results.successful.push({ productId: id });
+    } catch (error) {
+      results.failed.push({ productId: id, error: error.message });
     }
-  } catch (err) {
-    console.error("Error deleting product:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
   }
-};
+  sendSuccess(res, {
+    status: results.failed.length ? 207 : 200,
+    message: `Bulk delete: ${results.successful.length} successful, ${results.failed.length} failed`,
+    data: results,
+  });
+});
 
-// NEW: Restore soft deleted product
-exports.restoreProduct = async (req, res) => {
-  try {
-    const productId = req.params.id;
-
-    const result = await Product.restore(productId);
-
-    res.json({
-      success: true,
-      message: "Product restored successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error restoring product:", err);
-
-    if (err.message.includes("not found or not deleted")) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found or not deleted",
-      });
+exports.bulkRestoreProducts = asyncHandler(async (req, res) => {
+  const { productIds } = req.body;
+  if (!Array.isArray(productIds) || !productIds.length) {
+    throw new ApiError(400, "Product IDs array is required");
+  }
+  const results = { successful: [], failed: [] };
+  for (const id of productIds) {
+    try {
+      const product = await Product.findByPk(id, { paranoid: false });
+      if (!product || !product.deletedAt) throw new Error("Not found or not deleted");
+      await product.restore();
+      await product.update({ deletedReason: null });
+      results.successful.push({ productId: id });
+    } catch (error) {
+      results.failed.push({ productId: id, error: error.message });
     }
-
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
   }
-};
-
-// NEW: Check product dependencies
-exports.checkProductDependencies = async (req, res) => {
-  try {
-    const productId = req.params.id;
-
-    const dependencyCheck = await Product.canHardDelete(productId);
-
-    res.json({
-      success: true,
-      data: {
-        productId,
-        canHardDelete: dependencyCheck.canDelete,
-        totalDependencies: dependencyCheck.totalDependencies,
-        dependencies: dependencyCheck.dependencies,
-        recommendation: dependencyCheck.canDelete
-          ? "Safe to hard delete"
-          : "Use soft delete - has dependent records",
-      },
-    });
-  } catch (err) {
-    console.error("Error checking dependencies:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-// NEW: Get deleted products
-exports.getDeletedProducts = async (req, res) => {
-  try {
-    const deletedProducts = await Product.getDeleted();
-
-    res.json({
-      success: true,
-      data: deletedProducts,
-      count: deletedProducts.length,
-      message: "Deleted products retrieved successfully",
-    });
-  } catch (err) {
-    console.error("Error fetching deleted products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// ENHANCED: Get all products with deletion status filter
-exports.getAllProducts = async (req, res) => {
-  try {
-    const { includeDeleted = false, status } = req.query;
-
-    let products;
-
-    if (status === "deleted") {
-      products = await Product.getDeleted();
-    } else if (status === "active") {
-      products = await Product.getByStatus(false);
-    } else if (includeDeleted === "true") {
-      products = await Product.findAll(true);
-    } else {
-      products = await Product.findAll(false);
-    }
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-      filters: {
-        includeDeleted: includeDeleted === "true",
-        status: status || "all",
-      },
-    });
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// ENHANCED: Get product by ID with deletion status
-exports.getProductById = async (req, res) => {
-  try {
-    const { includeDeleted = false } = req.query;
-    const product = await Product.findById(
-      req.params.id,
-      includeDeleted === "true"
-    );
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error:
-          includeDeleted === "true"
-            ? "Product not found"
-            : "Product not found or has been deleted",
-        suggestion:
-          includeDeleted !== "true"
-            ? "Add ?includeDeleted=true to see deleted products"
-            : null,
-      });
-    }
-
-    // Add status information
-    const productWithStatus = {
-      ...product,
-      status: product.is_deleted ? "deleted" : "active",
-      canRestore: product.is_deleted,
-      canHardDelete: product.is_deleted,
-    };
-
-    res.json({
-      success: true,
-      data: productWithStatus,
-    });
-  } catch (err) {
-    console.error("Error fetching product:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// NEW: Bulk operations for products
-exports.bulkDeleteProducts = async (req, res) => {
-  try {
-    const {
-      productIds,
-      hard = false,
-      reason = "Bulk delete operation",
-      force = false,
-    } = req.body;
-
-    if (!Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Product IDs array is required",
-      });
-    }
-
-    const results = {
-      successful: [],
-      failed: [],
-      total: productIds.length,
-    };
-
-    for (const productId of productIds) {
-      try {
-        if (hard) {
-          if (!force) {
-            const dependencyCheck = await Product.canHardDelete(productId);
-            if (!dependencyCheck.canDelete) {
-              results.failed.push({
-                productId,
-                error: "Has dependent records",
-                dependencies: dependencyCheck.dependencies,
-              });
-              continue;
-            }
-          }
-          await Product.hardDelete(productId, force);
-          results.successful.push({ productId, type: "hard_delete" });
-        } else {
-          const result = await Product.softDelete(productId, reason);
-          results.successful.push({
-            productId,
-            type: "soft_delete",
-            ...result,
-          });
-        }
-      } catch (error) {
-        results.failed.push({
-          productId,
-          error: error.message,
-        });
-      }
-    }
-
-    const statusCode = results.failed.length === 0 ? 200 : 207; // 207 = Multi-Status
-
-    res.status(statusCode).json({
-      success: results.failed.length === 0,
-      message: `Bulk delete completed: ${results.successful.length} successful, ${results.failed.length} failed`,
-      data: results,
-    });
-  } catch (err) {
-    console.error("Error in bulk delete:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-// NEW: Bulk restore products
-exports.bulkRestoreProducts = async (req, res) => {
-  try {
-    const { productIds } = req.body;
-
-    if (!Array.isArray(productIds) || productIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Product IDs array is required",
-      });
-    }
-
-    const results = {
-      successful: [],
-      failed: [],
-      total: productIds.length,
-    };
-
-    for (const productId of productIds) {
-      try {
-        const result = await Product.restore(productId);
-        results.successful.push({ productId, ...result });
-      } catch (error) {
-        results.failed.push({
-          productId,
-          error: error.message,
-        });
-      }
-    }
-
-    const statusCode = results.failed.length === 0 ? 200 : 207;
-
-    res.status(statusCode).json({
-      success: results.failed.length === 0,
-      message: `Bulk restore completed: ${results.successful.length} successful, ${results.failed.length} failed`,
-      data: results,
-    });
-  } catch (err) {
-    console.error("Error in bulk restore:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-// Get featured products
-exports.getFeaturedProducts = async (req, res) => {
-  try {
-    const products = await Product.findis_FeaturedProducts();
-    res.json({
-      success: true,
-      data: products,
-    });
-  } catch (err) {
-    console.error("Error fetching featured products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Search products
-exports.searchProducts = async (req, res) => {
-  try {
-    const criteria = {
-      name: req.query.name,
-      brand: req.query.brand,
-      category: req.query.category,
-      minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : undefined,
-      maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : undefined,
-      inStock: req.query.inStock === "true",
-    };
-
-    // Remove undefined values
-    Object.keys(criteria).forEach(
-      (key) => criteria[key] === undefined && delete criteria[key]
-    );
-
-    const products = await Product.search(criteria);
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-    });
-  } catch (err) {
-    console.error("Error searching products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Update product stock
-exports.updateProductStock = async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const { quantity } = req.body;
-
-    if (quantity === undefined || isNaN(parseInt(quantity))) {
-      return res.status(400).json({
-        success: false,
-        error: "Valid quantity is required",
-      });
-    }
-
-    await Product.updateStock(productId, parseInt(quantity));
-
-    res.json({
-      success: true,
-      message: "Product stock updated successfully",
-      data: { id: productId, quantity: parseInt(quantity) },
-    });
-  } catch (err) {
-    console.error("Error updating product stock:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Update product rating
-exports.updateProductRating = async (req, res) => {
-  try {
-    const productId = req.params.id;
-    const { rating, reviewCount } = req.body;
-
-    if (!rating || !reviewCount) {
-      return res.status(400).json({
-        success: false,
-        error: "Rating and review count are required",
-      });
-    }
-
-    const newRating = parseFloat(rating);
-    const newReviewCount = parseInt(reviewCount);
-
-    if (isNaN(newRating) || isNaN(newReviewCount)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid rating or review count",
-      });
-    }
-
-    if (newRating < 0 || newRating > 5) {
-      return res.status(400).json({
-        success: false,
-        error: "Rating must be between 0 and 5",
-      });
-    }
-
-    await Product.updateRating(productId, newRating, newReviewCount);
-
-    res.json({
-      success: true,
-      message: "Product rating updated successfully",
-      data: { id: productId, rating: newRating, reviewCount: newReviewCount },
-    });
-  } catch (err) {
-    console.error("Error updating product rating:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-exports.getProductsByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    const products = await Product.search({ category });
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-    });
-  } catch (err) {
-    console.error("Error fetching products by category:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Get products by color
-exports.getProductsByColor = async (req, res) => {
-  try {
-    const { color } = req.params;
-    // You'll need to add a color search to your Product model
-    const query = "SELECT * FROM products WHERE color = ?";
-    const [products] = await db.execute(query, [color]);
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-    });
-  } catch (err) {
-    console.error("Error fetching products by color:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Get products by size
-exports.getProductsBySize = async (req, res) => {
-  try {
-    const { size } = req.params;
-    // Note: Your current model doesn't have a size field
-    // You might need to add it or use the specifications field
-    const query =
-      "SELECT * FROM products WHERE JSON_CONTAINS(specifications, JSON_OBJECT('size', ?))";
-    const [products] = await db.execute(query, [size]);
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-    });
-  } catch (err) {
-    console.error("Error fetching products by size:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Get products by price range
-exports.getProductsByPriceRange = async (req, res) => {
-  try {
-    const { minPrice, maxPrice } = req.query;
-
-    if (!minPrice && !maxPrice) {
-      return res.status(400).json({
-        success: false,
-        error: "Please provide minPrice or maxPrice query parameters",
-      });
-    }
-
-    const criteria = {};
-    if (minPrice) criteria.minPrice = parseFloat(minPrice);
-    if (maxPrice) criteria.maxPrice = parseFloat(maxPrice);
-
-    const products = await Product.search(criteria);
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-    });
-  } catch (err) {
-    console.error("Error fetching products by price range:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Update product image only
-exports.updateProductImage = async (req, res) => {
-  try {
-    const productId = req.params.id;
-
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "No images provided",
-      });
-    }
-
-    // Get existing product
-    const existingProduct = await Product.findById(productId);
-    if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        error: "Product not found",
-      });
-    }
-
-    // Process new images
-    const imagePaths = req.files.map((file) => `/uploads/${file.filename}`);
-    const imageData = JSON.stringify(imagePaths);
-
-    // Update only the image field
-    const result = await Product.update(productId, { image: imageData });
-
-    res.json({
-      success: true,
-      message: "Product image updated successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error updating product image:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
+  sendSuccess(res, {
+    status: results.failed.length ? 207 : 200,
+    message: `Bulk restore: ${results.successful.length} successful, ${results.failed.length} failed`,
+    data: results,
+  });
+});

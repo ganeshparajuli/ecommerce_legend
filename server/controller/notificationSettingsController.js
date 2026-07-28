@@ -1,93 +1,43 @@
-const { NotificationSettings } = require("../model/storeSettingsModel");
+const { NotificationSettings } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess } = require("../utils/apiResponse");
 
-// Get notification settings
-exports.getNotificationSettings = async (req, res) => {
-  try {
-    let settings = await NotificationSettings.getSettings();
-    
-    // If no settings exist, initialize with defaults
-    if (!settings) {
-      settings = await NotificationSettings.initializeDefaults();
-    }
+const BOOLEAN_FIELDS = [
+  "orderConfirmation",
+  "orderDelivery",
+  "lowStockAlert",
+  "newUserRegistration",
+  "orderCancellation",
+  "paymentConfirmation",
+  "newsletterSubscription",
+  "promotionalEmails",
+  "smsNotifications",
+  "emailNotifications",
+];
 
-    res.json({
-      success: true,
-      data: settings,
-    });
-  } catch (error) {
-    console.error("Error fetching notification settings:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch notification settings",
-    });
+async function getOrCreateSettings() {
+  const [settings] = await NotificationSettings.findOrCreate({ where: {}, defaults: {} });
+  return settings;
+}
+
+exports.getNotificationSettings = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  sendSuccess(res, { data: settings });
+});
+
+exports.updateNotificationSettings = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const updates = {};
+  for (const field of BOOLEAN_FIELDS) {
+    if (req.body[field] !== undefined) updates[field] = req.body[field] === true || req.body[field] === "true";
   }
-};
+  await settings.update(updates);
+  sendSuccess(res, { message: "Notification settings updated successfully", data: settings });
+});
 
-// Update notification settings
-exports.updateNotificationSettings = async (req, res) => {
-  try {
-    const updateData = req.body;
-
-    // Validate boolean fields
-    const booleanFields = [
-      'orderConfirmation', 'orderDelivery', 'lowStockAlert', 'newUserRegistration',
-      'orderCancellation', 'paymentConfirmation', 'newsletterSubscription',
-      'promotionalEmails', 'smsNotifications', 'emailNotifications'
-    ];
-
-    booleanFields.forEach(field => {
-      if (updateData[field] !== undefined && typeof updateData[field] !== 'boolean') {
-        updateData[field] = updateData[field] === 'true' || updateData[field] === true;
-      }
-    });
-
-    // Check if settings exist
-    const existingSettings = await NotificationSettings.getSettings();
-    
-    if (existingSettings) {
-      // Update existing settings
-      await NotificationSettings.updateFields(updateData);
-    } else {
-      // Create new settings
-      const newSettings = new NotificationSettings(updateData);
-      await newSettings.save();
-    }
-
-    // Get updated settings
-    const updatedSettings = await NotificationSettings.getSettings();
-
-    res.json({
-      success: true,
-      message: "Notification settings updated successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error updating notification settings:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to update notification settings",
-    });
-  }
-};
-
-// Reset notification settings to defaults
-exports.resetNotificationSettings = async (req, res) => {
-  try {
-    const defaultSettings = new NotificationSettings({});
-    await defaultSettings.update();
-    
-    const updatedSettings = await NotificationSettings.getSettings();
-
-    res.json({
-      success: true,
-      message: "Notification settings reset to defaults",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error resetting notification settings:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to reset notification settings",
-    });
-  }
-};
+exports.resetNotificationSettings = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const defaults = Object.fromEntries(BOOLEAN_FIELDS.map((f) => [f, NotificationSettings.rawAttributes[f].defaultValue]));
+  await settings.update(defaults);
+  sendSuccess(res, { message: "Notification settings reset to defaults", data: settings });
+});

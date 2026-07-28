@@ -1,205 +1,44 @@
-// controller/newsletterController.js
-console.log('🔧 Loading Newsletter model...');
-const Newsletter = require("../model/newsletterModel");
-console.log('✅ Newsletter model loaded successfully');
+const { NewsletterSubscriber } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// Controller methods for handling newsletter subscription operations
-const newsletterController = {
-  // Subscribe to newsletter
-  subscribe: async (req, res) => {
-    console.log('📧 Newsletter subscribe called with:', req.body);
-    console.log('📧 Request headers:', req.headers);
-    
-    try {
-      const { email } = req.body;
+exports.subscribe = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["email"]);
+  const existing = await NewsletterSubscriber.findOne({ where: { email: req.body.email } });
+  if (existing) throw new ApiError(409, "Email is already subscribed");
 
-      if (!email) {
-        console.log('❌ No email provided');
-        return res.status(400).json({
-          success: false,
-          message: "Email is required",
-        });
-      }
+  const subscription = await NewsletterSubscriber.create({ email: req.body.email, name: req.body.name || null });
+  sendSuccess(res, { status: 201, message: "Successfully subscribed to the newsletter", data: subscription });
+});
 
-      console.log('📧 Checking if email exists:', email);
-      // Check if email already exists
-      const existingSubscription = await Newsletter.findByEmail(email);
-      if (existingSubscription) {
-        console.log('❌ Email already exists:', email);
-        return res.status(409).json({
-          success: false,
-          message: "Email is already subscribed",
-        });
-      }
+exports.getAllSubscriptions = asyncHandler(async (req, res) => {
+  const subscriptions = await NewsletterSubscriber.findAll({ order: [["subscribedAt", "DESC"]] });
+  sendSuccess(res, { data: subscriptions, meta: { count: subscriptions.length } });
+});
 
-      console.log('📧 Creating new subscription for:', email);
-      // Create and save new subscription
-      const newsletter = new Newsletter(email);
-      const newSubscription = await newsletter.save();
+exports.getSubscriptionById = asyncHandler(async (req, res) => {
+  const subscription = await NewsletterSubscriber.findByPk(req.params.id);
+  if (!subscription) throw new ApiError(404, "Subscription not found");
+  sendSuccess(res, { data: subscription });
+});
 
-      console.log('✅ Newsletter subscription successful:', newSubscription);
-      return res.status(201).json({
-        success: true,
-        message: "Successfully subscribed to the newsletter",
-        data: newSubscription,
-      });
-    } catch (error) {
-      console.error("❌ Error in subscribe:", error);
-      return res.status(500).json({
-        success: false,
-        message: "An error occurred while subscribing to the newsletter",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  },
+exports.updateSubscription = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["email"]);
+  const subscription = await NewsletterSubscriber.findByPk(req.params.id);
+  if (!subscription) throw new ApiError(404, "Subscription not found");
 
-  // Get all subscriptions
-  getAllSubscriptions: async (req, res) => {
-    console.log('📧 getAllSubscriptions called');
-    try {
-      const subscriptions = await Newsletter.findAll();
-      console.log('✅ Found subscriptions:', subscriptions.length);
+  if (req.body.email !== subscription.email) {
+    const existingEmail = await NewsletterSubscriber.findOne({ where: { email: req.body.email } });
+    if (existingEmail) throw new ApiError(409, "Email is already subscribed");
+  }
 
-      return res.status(200).json({
-        success: true,
-        count: subscriptions.length,
-        data: subscriptions,
-      });
-    } catch (error) {
-      console.error("❌ Error in getAllSubscriptions:", error);
-      return res.status(500).json({
-        success: false,
-        message: "An error occurred while retrieving subscriptions",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  },
+  await subscription.update({ email: req.body.email });
+  sendSuccess(res, { message: "Subscription updated successfully", data: subscription });
+});
 
-  // Get subscription by ID
-  getSubscriptionById: async (req, res) => {
-    console.log('📧 getSubscriptionById called with id:', req.params.id);
-    try {
-      const { id } = req.params;
-
-      const subscription = await Newsletter.findById(id);
-
-      if (!subscription) {
-        console.log('❌ Subscription not found:', id);
-        return res.status(404).json({
-          success: false,
-          message: "Subscription not found",
-        });
-      }
-
-      console.log('✅ Found subscription:', subscription);
-      return res.status(200).json({
-        success: true,
-        data: subscription,
-      });
-    } catch (error) {
-      console.error("❌ Error in getSubscriptionById:", error);
-      return res.status(500).json({
-        success: false,
-        message: "An error occurred while retrieving the subscription",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  },
-
-  // Update subscription
-  updateSubscription: async (req, res) => {
-    console.log('📧 updateSubscription called with id:', req.params.id, 'email:', req.body.email);
-    try {
-      const { id } = req.params;
-      const { email } = req.body;
-
-      if (!email) {
-        console.log('❌ No email provided for update');
-        return res.status(400).json({
-          success: false,
-          message: "Email is required",
-        });
-      }
-
-      // Check if subscription exists
-      const subscription = await Newsletter.findById(id);
-      if (!subscription) {
-        console.log('❌ Subscription not found for update:', id);
-        return res.status(404).json({
-          success: false,
-          message: "Subscription not found",
-        });
-      }
-
-      // Check if new email already exists for another subscription
-      if (email !== subscription.email) {
-        const existingEmail = await Newsletter.findByEmail(email);
-        if (existingEmail && existingEmail.id !== id) {
-          console.log('❌ Email already exists for another subscription:', email);
-          return res.status(409).json({
-            success: false,
-            message: "Email is already subscribed",
-          });
-        }
-      }
-
-      const updatedSubscription = await Newsletter.updateSubscription(id, email);
-
-      if (!updatedSubscription) {
-        console.log('❌ Failed to update subscription:', id);
-        return res.status(404).json({
-          success: false,
-          message: "Failed to update subscription",
-        });
-      }
-
-      console.log('✅ Subscription updated successfully:', updatedSubscription);
-      return res.status(200).json({
-        success: true,
-        message: "Subscription updated successfully",
-        data: updatedSubscription,
-      });
-    } catch (error) {
-      console.error("❌ Error in updateSubscription:", error);
-      return res.status(500).json({
-        success: false,
-        message: "An error occurred while updating the subscription",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  },
-
-  // Unsubscribe (delete subscription)
-  unsubscribe: async (req, res) => {
-    console.log('📧 unsubscribe called with id:', req.params.id);
-    try {
-      const { id } = req.params;
-
-      const deleted = await Newsletter.deleteSubscription(id);
-
-      if (!deleted) {
-        console.log('❌ Subscription not found for deletion:', id);
-        return res.status(404).json({
-          success: false,
-          message: "Subscription not found",
-        });
-      }
-
-      console.log('✅ Successfully unsubscribed:', id);
-      return res.status(200).json({
-        success: true,
-        message: "Successfully unsubscribed from the newsletter",
-      });
-    } catch (error) {
-      console.error("❌ Error in unsubscribe:", error);
-      return res.status(500).json({
-        success: false,
-        message: "An error occurred while unsubscribing",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  },
-};
-
-console.log('📧 Newsletter controller methods configured');
-module.exports = newsletterController;
+exports.unsubscribe = asyncHandler(async (req, res) => {
+  const deleted = await NewsletterSubscriber.destroy({ where: { id: req.params.id } });
+  if (!deleted) throw new ApiError(404, "Subscription not found");
+  sendSuccess(res, { message: "Successfully unsubscribed from the newsletter" });
+});

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
@@ -62,23 +62,7 @@ const isUserLoggedIn = (): boolean => {
   return Boolean(token && justLoggedOut !== "true");
 };
 
-// Product interface
-interface Product {
-  id: string;
-  name: string;
-  actualPrice: any;
-  discountPrice: any;
-  finalPrice: any;
-  description: string;
-  image: string | string[];
-  category: string;
-  brand?: string; // Add brand property for filtering
-  quantity: number;
-  rating?: number;
-  reviews?: number;
-  tags?: string[];
-  inStock?: boolean;
-}
+import type { Product } from "../../redux/constants/productConstants";
 
 // Helper functions
 // const formatPrice = (price: any): string => {
@@ -284,6 +268,7 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
 // Main Joy Store Products Component
 const JoyStoreProducts = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const [searchParams] = useSearchParams();
@@ -496,10 +481,23 @@ const JoyStoreProducts = () => {
       return;
     }
 
+    // Products with more than one variant need the customer to choose one on the PDP -
+    // adding directly from the grid would silently pick a variant on their behalf.
+    if (product.variants.length > 1) {
+      navigate(`/products/${product.id}`);
+      return;
+    }
+
+    const variantId = product.defaultVariant?.id;
+    if (!variantId) {
+      toast.error("This product is not available right now.");
+      return;
+    }
+
     setAddingToCart((prev) => ({ ...prev, [product.id]: true }));
 
     try {
-      dispatch(addToCart({ ...product, quantity: 1 }) as any);
+      dispatch(addToCart(variantId, 1) as any);
       toast.success(
         <div className="flex items-center">
           <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center mr-3">
@@ -1030,7 +1028,7 @@ const JoyStoreProducts = () => {
                           ) : (
                             <>
                               <ShoppingCart className="w-4 h-4 mr-2" />
-                              Add to Cart
+                              {product.variants.length > 1 ? "View Options" : "Add to Cart"}
                             </>
                           )}
                         </button>

@@ -1,361 +1,112 @@
-const ProductVariant = require("../model/productVariantModel");
+const { Op } = require("sequelize");
+const { ProductVariant, Product, CartItem, OrderItem } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// Create a new product
-exports.createProductVariant = async (req, res) => {
-  try {
-    console.log("Received product data:", req.body);
-    // Convert [Object: null prototype] to a regular object
-    const productData = Object.assign({}, req.body);
+exports.getAllProductVariants = asyncHandler(async (req, res) => {
+  const includeDeleted = req.query.includeDeleted === "true";
+  const where = {};
+  if (req.query.productId) where.productId = req.query.productId;
+  const variants = await ProductVariant.findAll({ where, paranoid: !includeDeleted, order: [["createdAt", "ASC"]] });
+  sendSuccess(res, { data: variants });
+});
 
-    // Extract all fields from request body including new model fields
-  const {
-  actualPrice,
-  discountPrice,
-  finalPrice,
-  quantity,
-  product_id,
-  storage,
-  size,
-  color,
-  originalPrice,
-  is_deleted
-} = productData;
+exports.getProductVariantById = asyncHandler(async (req, res) => {
+  const includeDeleted = req.query.includeDeleted === "true";
+  const variant = await ProductVariant.findByPk(req.params.id, { paranoid: !includeDeleted });
+  if (!variant) throw new ApiError(404, "Product variant not found");
+  sendSuccess(res, { data: variant });
+});
 
-console.log("Extracted product fields:", productData);
+exports.createProductVariant = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["product_id", "price"]);
+  const product = await Product.findByPk(req.body.product_id);
+  if (!product) throw new ApiError(404, "Product not found");
 
-    // // Validate required fields
-    // if (!name || name.trim() === "") {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: "Product name is required",
-    //   });
-    // }
+  const price = parseFloat(req.body.price);
+  if (!Number.isFinite(price) || price < 0) throw new ApiError(400, "Valid price is required");
+  const compareAtPrice = req.body.compareAtPrice !== undefined ? parseFloat(req.body.compareAtPrice) : null;
 
-    // Handle different price field names
-    const productPrice = finalPrice  || actualPrice || 0;
-    console.log("Determined product price:", productPrice);
-    
-    const numPrice = parseFloat(productPrice);
+  const variant = await ProductVariant.create({
+    productId: req.body.product_id,
+    sku: req.body.sku || undefined,
+    price,
+    compareAtPrice: compareAtPrice && compareAtPrice > price ? compareAtPrice : null,
+    quantity: parseInt(req.body.quantity, 10) || 0,
+    attributes: req.body.attributes && typeof req.body.attributes === "object" ? req.body.attributes : {},
+    isDefault: !!req.body.isDefault,
+  });
 
-    if (!numPrice || numPrice <= 0 || isNaN(numPrice)) {
-      return res.status(400).json({
-        success: false,
-        error: "Valid product price is required",
-      });
-    }
-    // Parse JSON fields if they come as strings
-    // const parseJsonField = (field) => {
-    //   if (!field) return null;
-    //   if (typeof field === "string") {
-    //     try {
-    //       return JSON.parse(field);
-    //     } catch (e) {
-    //       console.error(`Error parsing field: ${e.message}`);
-    //       return field;
-    //     }
-    //   }
-    //   return field;
-    // };
+  sendSuccess(res, { status: 201, message: "Product variant created successfully", data: variant });
+});
 
-// Prepare data for the product_variants model
-const modelData = {
-  actualPrice: actualPrice ? parseFloat(actualPrice) : null,
-  discountPrice: discountPrice ? parseFloat(discountPrice) : null,
-  finalPrice: finalPrice ? parseFloat(finalPrice) : null,
-  quantity: quantity ? parseInt(quantity) : 0,
-  product_id: product_id || null,
-  storage: storage ? storage.trim() : null,
-  size: size ? size.trim() : null,
-  color: color ? color.trim() : null,
-  originalPrice: originalPrice ? parseFloat(originalPrice) : null,
-  is_deleted:
-    is_deleted === true ||
-    is_deleted === "true" ||
-    is_deleted === 1
-      ? 1
-      : 0,
-  // timestamps are handled automatically by DB
-};
+exports.updateProductVariant = asyncHandler(async (req, res) => {
+  const variant = await ProductVariant.findByPk(req.params.id);
+  if (!variant) throw new ApiError(404, "Product variant not found");
 
-
-    console.log("Processed product data for model:", modelData);
-
-    const result = await ProductVariant.create(modelData);
-
-    res.status(201).json({
-      success: true,
-      message: "Product Variant created successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error creating product variant:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
+  const updates = {};
+  if (req.body.sku !== undefined) updates.sku = req.body.sku;
+  if (req.body.quantity !== undefined) updates.quantity = parseInt(req.body.quantity, 10) || 0;
+  if (req.body.attributes !== undefined && typeof req.body.attributes === "object") {
+    updates.attributes = req.body.attributes;
   }
-};
+  if (req.body.isDefault !== undefined) updates.isDefault = !!req.body.isDefault;
 
-// Update product
-exports.updateProductVariant = async (req, res) => {
-  try {
-    const variantId = req.params.id;
-    console.log("Updating product ID:", variantId);
-    console.log("Request body:", req.body);
-    const {product_id} = req.body;
+  const nextPrice = req.body.price !== undefined ? parseFloat(req.body.price) : variant.price;
+  if (req.body.price !== undefined) {
+    if (!Number.isFinite(nextPrice) || nextPrice < 0) throw new ApiError(400, "Valid price is required");
+    updates.price = nextPrice;
+  }
+  if (req.body.compareAtPrice !== undefined) {
+    const compareAtPrice = req.body.compareAtPrice === null ? null : parseFloat(req.body.compareAtPrice);
+    updates.compareAtPrice = compareAtPrice && compareAtPrice > nextPrice ? compareAtPrice : null;
+  }
 
-    // Fetch the existing variant
-    const existingVariant = await ProductVariant.findById(variantId);
-    if (!existingVariant) {
-      return res.status(404).json({
-        success: false,
-        error: "Product variant not found",
-      });
-    }
+  await variant.update(updates);
+  sendSuccess(res, { message: "Product variant updated successfully", data: variant });
+});
 
-     // Convert request body to plain object
-    const variantData = Object.assign({}, req.body);
+async function countVariantDependencies(variantId) {
+  const [cartItems, orderItems] = await Promise.all([
+    CartItem.count({ where: { productVariantId: variantId } }),
+    OrderItem.count({ where: { productVariantId: variantId } }),
+  ]);
+  const total = cartItems + orderItems;
+  return { dependencies: { cartItems, orderItems }, total, canDelete: total === 0 };
+}
 
-    // Build update object dynamically
-    const updateData = {};
-    const fields = [
-      "actualPrice",
-      "discountPrice",
-      "finalPrice",
-      "quantity",
-      "product_id",
-      "storage",
-      "size",
-      "color",
-      "originalPrice",
-      "is_deleted",
-      "deleted_at",
-      "deleted_reason",
-    ];
+exports.deleteProductVariant = asyncHandler(async (req, res) => {
+  const { hard = false, force = false, reason } = req.body;
+  const variant = await ProductVariant.findByPk(req.params.id, { paranoid: false });
+  if (!variant) throw new ApiError(404, "Product variant not found");
 
-    fields.forEach((key) => {
-      if (variantData[key] !== undefined) {
-        if (["actualPrice","discountPrice","finalPrice","quantity","originalPrice"].includes(key)) {
-          updateData[key] = variantData[key] !== null ? parseFloat(variantData[key]) : null;
-        } else if (key === "is_deleted") {
-          updateData[key] = variantData[key] ? 1 : 0;
-        } else {
-          updateData[key] = variantData[key] ?? null;
-        }
+  const siblingCount = await ProductVariant.count({ where: { productId: variant.productId } });
+  if (siblingCount <= 1) {
+    throw new ApiError(400, "Cannot delete the only variant of a product - delete the product instead");
+  }
+
+  if (hard) {
+    if (!force) {
+      const check = await countVariantDependencies(variant.id);
+      if (!check.canDelete) {
+        throw new ApiError(409, `Cannot permanently delete: ${check.total} dependent record(s) found.`);
       }
-    });
-
-    // Always update timestamp
-    updateData.updated_at = new Date();
-    console.log("Final update data:", updateData);
-    const result = await ProductVariant.update(product_id, updateData);
-
-    res.json({
-      success: true,
-      message: "Product variant updated successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error updating product variant:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-// Get all products
-exports.getAllProductVariants = async (req, res) => {
-  try {
-    const products = await ProductVariant.findAll();
-    res.json({
-      success: true,
-      data: products,
-    });
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
-  }
-};
-
-// Get product by ID
-exports.getProductVariantById = async (req, res) => {
-  try {
-    const product = await ProductVariant.findById(req.params.id, true);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: "Product variant not found",
-      });
     }
-
-    res.json({
-      success: true,
-      data: product,
-    });
-  } catch (err) {
-    console.error("Error fetching product variant:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
+    await variant.destroy({ force: true });
+    return sendSuccess(res, { message: "Product variant permanently deleted", data: { id: variant.id, type: "hard_delete" } });
   }
-};
 
+  if (variant.deletedAt) throw new ApiError(400, "Product variant is already deleted");
+  await variant.update({ deletedReason: reason || "Deleted by admin" });
+  await variant.destroy();
+  sendSuccess(res, { message: "Product variant deleted successfully (can be restored)", data: { id: variant.id, type: "soft_delete" } });
+});
 
-
-
-
-// ENHANCED: Delete product variant with soft delete support
-exports.deleteProductVariant = async (req, res) => {
-  try {
-    const variantId = req.params.id;
-    const {
-      hard = false,
-      reason = "Deleted by admin",
-      force = false,
-    } = req.body;
-
-    console.log(`Delete request for product variant ${variantId}:`, {
-      hard,
-      reason,
-      force,
-    });
-
-    // Check if variant exists
-    const existingVariant = await ProductVariant.findById(variantId, true); // Include deleted
-    if (!existingVariant) {
-      return res.status(404).json({
-        success: false,
-        error: "Product variant not found",
-      });
-    }
-
-    // If already deleted and not forcing
-    if (existingVariant.is_deleted && !force) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Product variant is already deleted. Use restore endpoint to restore it.",
-        data: {
-          variantId,
-          deletedAt: existingVariant.deleted_at,
-          deletedReason: existingVariant.deleted_reason,
-        },
-      });
-    }
-
-    try {
-      if (hard) {
-        // Attempt hard delete
-        // if (!force) {
-        //   // Check dependencies first
-        //   const dependencyCheck = await ProductVariant.canHardDelete(variantId);
-
-        //   if (!dependencyCheck.canDelete) {
-        //     return res.status(409).json({
-        //       success: false,
-        //       error: "Cannot permanently delete this product variant",
-        //       message: `This variant has ${dependencyCheck.totalDependencies} dependent records that prevent deletion.`,
-        //       dependencies: dependencyCheck.dependencies,
-        //       suggestion:
-        //         "Use soft delete instead, or resolve dependencies first.",
-        //       alternatives: {
-        //         softDelete: `/api/productVariant/${variantId}`,
-        //         checkDependencies: `/api/productVariant/${variantId}/dependencies`,
-        //       },
-        //     });
-        //   }
-        // }
-
-        await ProductVariant.hardDelete(variantId, force);
-
-        res.json({
-          success: true,
-          message: "Product variant permanently deleted successfully",
-          data: {
-            id: variantId,
-            type: "hard_delete",
-            forced: force,
-          },
-        });
-      } else {
-        // Soft delete
-        const result = await ProductVariant.softDelete(variantId, reason);
-
-        res.json({
-          success: true,
-          message: "Product variant deleted successfully (can be restored)",
-          data: {
-            ...result,
-            type: "soft_delete",
-            restoreEndpoint: `/api/productVariant/${variantId}/restore`,
-          },
-        });
-      }
-    } catch (deleteError) {
-      console.error("Delete operation failed:", deleteError);
-
-      if (deleteError.message.includes("dependent records")) {
-        return res.status(409).json({
-          success: false,
-          error: "Cannot delete product variant due to dependencies",
-          message: deleteError.message,
-          suggestion: "Use soft delete instead",
-          alternatives: {
-            softDelete: {
-              method: "DELETE",
-              url: `/api/productVariant/${variantId}`,
-              body: { hard: false, reason: "Variant with dependencies" },
-            },
-          },
-        });
-      }
-
-      throw deleteError;
-    }
-  } catch (err) {
-    console.error("Error deleting product variant:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-// NEW: Restore soft deleted product variant
-exports.restoreProductVariant = async (req, res) => {
-  try {
-    const variantId = req.params.id;
-
-    const result = await ProductVariant.restore(variantId);
-
-    res.json({
-      success: true,
-      message: "Product variant restored successfully",
-      data: result,
-    });
-  } catch (err) {
-    console.error("Error restoring product variant:", err);
-
-    if (err.message.includes("not found or not deleted")) {
-      return res.status(404).json({
-        success: false,
-        error: "Product variant not found or not deleted",
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: err.message || "Server error",
-    });
-  }
-};
-
-
-
-
-
+exports.restoreProductVariant = asyncHandler(async (req, res) => {
+  const variant = await ProductVariant.findByPk(req.params.id, { paranoid: false });
+  if (!variant || !variant.deletedAt) throw new ApiError(404, "Product variant not found or not deleted");
+  await variant.restore();
+  await variant.update({ deletedReason: null });
+  sendSuccess(res, { message: "Product variant restored successfully", data: variant });
+});

@@ -39,7 +39,7 @@ const getErrorMessage = (error: any): string => {
   
         const link = `user/${id}`; // Use the user's ID to fetch the user data
         const { data } = await api.get(link, config);
-        dispatch({ type: GetProfile.Success, payload: data.user });
+        dispatch({ type: GetProfile.Success, payload: data.data });
       } else {
         dispatch({ type: GetProfile.Fail, payload: "No token found" });
       }
@@ -74,10 +74,10 @@ const getErrorMessage = (error: any): string => {
   
       const result = await api.put(`user/update-image/${id}`, profileData, config);
       console.log("Image update result:", result);
-  
+
       dispatch({
         type: UpdateProfile.Success,
-        payload: result?.data?.user || {},
+        payload: result?.data?.data || {},
       });
   
       return true;
@@ -115,10 +115,10 @@ const getErrorMessage = (error: any): string => {
   
       const result = await api.put(`user/${id}`, profileData, config);
       console.log("Profile fields update result:", result);
-  
+
       dispatch({
         type: UpdateProfile.Success,
-        payload: result?.data?.user || {},
+        payload: result?.data?.data || {},
       });
   
       return true;

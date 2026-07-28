@@ -1,43 +1,44 @@
-// controllers/servicesController.js
-const Services = require('../model/servicesModel');
+const { Service } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-exports.getAllServices = (req, res) => {
-  Services.getAll((err, results) => {
-    if (err) return res.status(500).send(err);
-    res.json(results);
-  });
-};
+exports.getAllServices = asyncHandler(async (req, res) => {
+  const services = await Service.findAll({ order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { data: services });
+});
 
-exports.getServiceById = (req, res) => {
-  const id = req.params.id;
-  Services.getById(id, (err, result) => {
-    if (err) return res.status(500).send(err);
-    if (!result.length) return res.status(404).send('Service not found');
-    res.json(result[0]);
-  });
-};
+exports.getServiceById = asyncHandler(async (req, res) => {
+  const service = await Service.findByPk(req.params.id);
+  if (!service) throw new ApiError(404, "Service not found");
+  sendSuccess(res, { data: service });
+});
 
-exports.createService = (req, res) => {
-  const data = req.body;
-  Services.create(data, (err, result) => {
-    if (err) return res.status(500).send(err);
-    res.status(201).send({ id: result.insertId, ...data });
+exports.createService = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["name"]);
+  const service = await Service.create({
+    name: req.body.name,
+    description: req.body.description,
+    price: req.body.price,
+    imageUrl: req.body.imageUrl,
   });
-};
+  sendSuccess(res, { status: 201, data: service });
+});
 
-exports.updateService = (req, res) => {
-  const id = req.params.id;
-  const data = req.body;
-  Services.update(id, data, (err) => {
-    if (err) return res.status(500).send(err);
-    res.send({ id, ...data });
-  });
-};
+exports.updateService = asyncHandler(async (req, res) => {
+  const service = await Service.findByPk(req.params.id);
+  if (!service) throw new ApiError(404, "Service not found");
 
-exports.deleteService = (req, res) => {
-  const id = req.params.id;
-  Services.delete(id, (err) => {
-    if (err) return res.status(500).send(err);
-    res.send({ message: 'Service deleted successfully' });
-  });
-};
+  const allowed = ["name", "description", "price", "imageUrl"];
+  const updates = {};
+  for (const field of allowed) if (req.body[field] !== undefined) updates[field] = req.body[field];
+
+  await service.update(updates);
+  sendSuccess(res, { data: service });
+});
+
+exports.deleteService = asyncHandler(async (req, res) => {
+  const deleted = await Service.destroy({ where: { id: req.params.id } });
+  if (!deleted) throw new ApiError(404, "Service not found");
+  sendSuccess(res, { message: "Service deleted successfully" });
+});

@@ -37,7 +37,7 @@ export const getAllBrands = () => async (dispatch: Dispatch<AnyAction>): Promise
     // FIXED: Deep clone before dispatching
     dispatch({
       type: GetAllBrands.Success,
-      payload: safeClone(response.data.brands), // Assuming backend returns { brands: [...] }
+      payload: safeClone(response.data.data),
     });
   } catch (error) {
     dispatch({
@@ -54,14 +54,14 @@ export const getBrandDetails = (id: string) => async (dispatch: Dispatch<AnyActi
 
     const { data } = await api.get(`brand/${id}`);
     // Check if the brand exists
-    if (data.success === false || !data.brand) {
+    if (data.success === false || !data.data) {
       throw new Error(data.message || "Brand not found");
     }
 
     // FIXED: Deep clone before dispatching
     dispatch({
       type: GetBrandDetails.Success,
-      payload: safeClone(data.brand),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({
@@ -77,14 +77,14 @@ export const getBrandDetailsBySlug = (slug: string) => async (dispatch: Dispatch
     dispatch({ type: GetBrandDetails.Request });
 
     const { data } = await api.get(`brand/slug/${slug}`);
-    if (data.success === false || !data.brand) {
+    if (data.success === false || !data.data) {
       throw new Error(data.message || "Brand not found");
     }
 
     // FIXED: Deep clone before dispatching
     dispatch({
       type: GetBrandDetails.Success,
-      payload: safeClone(data.brand),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({
@@ -223,7 +223,7 @@ export const getBrandsWithImages = () => async (dispatch: Dispatch<AnyAction>): 
     // FIXED: Deep clone before dispatching
     dispatch({
       type: GetAllBrands.Success,
-      payload: safeClone(response.data.brands),
+      payload: safeClone(response.data.data),
     });
   } catch (error) {
     dispatch({

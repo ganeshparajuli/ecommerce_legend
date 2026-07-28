@@ -52,9 +52,9 @@ export const createContact = (contactData: Partial<Contact>) => async (dispatch:
 
     // Handle different response formats
     let contactResult;
-    if (data.contact) {
-      // API returns {contact: {...}}
-      contactResult = data.contact;
+    if (data.data) {
+      // API returns {data: {...}}
+      contactResult = data.data;
     } else if (Array.isArray(data)) {
       // API returns array
       contactResult = data[0] || data;
@@ -171,7 +171,7 @@ export const getContactById = (id: string) => async (dispatch: Dispatch): Promis
     // FIXED: Deep clone before dispatching
     dispatch({
       type: GetSingleContact.Success,
-      payload: safeClone(data.contact || data),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({
@@ -203,7 +203,7 @@ export const updateContactStatus = (id: string, status: string) => async (dispat
     // FIXED: Deep clone before dispatching
     dispatch({
       type: UpdateContact.Success,
-      payload: safeClone(data.contacts || data.contact || data),
+      payload: safeClone(data.data),
     });
 
     return "success";

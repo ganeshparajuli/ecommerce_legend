@@ -36,7 +36,7 @@ export const getAllFaqs = () => async (dispatch: Dispatch): Promise<void> => {
 
       dispatch({
         type: GET_FAQS_SUCCESS,
-        payload: data,
+        payload: data.data,
       });
       console.log("Dispatched GET_FAQS_SUCCESS with payload:", data); // Debug log
     
@@ -65,7 +65,7 @@ export const addFaq = (faqData: Partial<FAQ>) => async (dispatch: Dispatch): Pro
 
     dispatch({
       type: ADD_FAQ_SUCCESS,
-      payload: data.faq,
+      payload: data.data,
     });
 
     return "success";
@@ -95,7 +95,7 @@ export const updateFaq = (id: string, faqData: Partial<FAQ>) => async (dispatch:
 
     dispatch({
       type: UPDATE_FAQ_SUCCESS,
-      payload: data.faq,
+      payload: data.data,
     });
 
     return "success";

@@ -409,18 +409,11 @@ const ProfileSettings: React.FC = () => {
         formData
       );
 
-      // Call the API directly to ensure we get a response
-      const response = await api.put(`/user/${userId}`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const result = await dispatch(updateUser(userId, formData) as any);
 
-      console.log("Profile update API response:", response);
-
-      // Dispatch the Redux action to update the store
-      await dispatch(updateUser(userId, formData) as any);
+      if (!result?.success) {
+        throw new Error(result?.error || "Failed to update profile");
+      }
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

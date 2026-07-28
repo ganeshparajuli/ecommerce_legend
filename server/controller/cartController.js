@@ -1,319 +1,137 @@
-const CartItem = require("../model/cartModel");
-const Product = require("../model/productModel");
+const { CartItem, ProductVariant, Product, ProductImage, Sale } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
 
-const cartController = {
-  // Add item to cart
-  addToCart: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      // Log the request body to debug
-      console.log("Add to cart request body:", JSON.stringify(req.body));
+const ITEM_INCLUDES = [
+  {
+    model: ProductVariant,
+    as: "variant",
+    include: [{ model: Product, as: "product", include: [{ model: ProductImage, as: "images", separate: true, limit: 1, order: [["sortOrder", "ASC"]] }] }],
+  },
+  { model: Sale, as: "sale" },
+];
 
-      // Extract product ID, quantity, and sale info from request body
-      const { productId, quantity = 1, saleInfo } = req.body;
+function effectivePrice(variant, sale) {
+  const base = variant.price;
+  if (!sale || sale.status !== "active") return { price: base, isOnSale: false };
+  const discount =
+    sale.discountType === "percentage" ? base * (sale.discountValue / 100) : sale.discountValue;
+  return { price: Math.max(0, base - discount), isOnSale: true, discountType: sale.discountType, discountValue: sale.discountValue };
+}
 
-      // Handle case where productId might be an object
-      let product_id;
-
-      if (typeof productId === "object" && productId !== null && productId.id) {
-        product_id = productId.id;
-        console.log("Product ID extracted from object:", product_id);
-      } else {
-        product_id = productId;
-      }
-
-      // Validate input
-      if (!product_id) {
-        console.log("Invalid product ID received:", productId);
-        return res.status(400).json({ message: "Product ID is required" });
-      }
-
-      if (isNaN(parseInt(quantity)) || parseInt(quantity) < 1) {
-        return res.status(400).json({ message: "Valid quantity is required" });
-      }
-
-      // Check if product exists
-      const product = await Product.findById(product_id);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-
-      // Check if product is in stock
-      if (product.quantity < parseInt(quantity)) {
-        return res.status(400).json({
-          message: "Product is out of stock or insufficient quantity",
-        });
-      }
-
-      // Check if item already in cart
-      const existingItem = await CartItem.findByUserAndProductId(
-        userId,
-        product_id
-      );
-
-      if (existingItem) {
-        // If the total quantity would exceed available stock, return error
-        if (existingItem.quantity + parseInt(quantity) > product.quantity) {
-          return res.status(400).json({
-            message:
-              "Cannot add more of this item to your cart due to stock limitations",
-            availableStock: product.quantity,
-            currentlyInCart: existingItem.quantity,
-          });
+function serializeCartItem(item) {
+  const { price, ...saleInfo } = effectivePrice(item.variant, item.sale);
+  return {
+    id: item.id,
+    productId: item.productId,
+    productVariantId: item.productVariantId,
+    quantity: item.quantity,
+    selected: item.selected,
+    price,
+    ...saleInfo,
+    variant: item.variant
+      ? {
+          id: item.variant.id,
+          sku: item.variant.sku,
+          price: item.variant.price,
+          compareAtPrice: item.variant.compareAtPrice,
+          quantity: item.variant.quantity,
+          attributes: item.variant.attributes,
         }
-      }
+      : null,
+    product: item.variant?.product
+      ? {
+          id: item.variant.product.id,
+          name: item.variant.product.name,
+          image: item.variant.product.images?.[0]?.url || null,
+        }
+      : null,
+  };
+}
 
-      // Log sale info for debugging
-      if (saleInfo) {
-        console.log("Sale info received:", saleInfo);
-      }
+exports.addToCart = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { productVariantId, quantity = 1, saleId } = req.body;
+  const qty = parseInt(quantity, 10);
 
-      // Add to cart with sale information
-      const cartItem = new CartItem(
-        userId,
-        product_id,
-        parseInt(quantity),
-        true,
-        saleInfo // Pass sale info to constructor
-      );
-      await cartItem.save();
+  if (!productVariantId) throw new ApiError(400, "productVariantId is required");
+  if (!Number.isFinite(qty) || qty < 1) throw new ApiError(400, "Valid quantity is required");
 
-      // Determine the price to return in response
-      const responsePrice =
-        saleInfo?.salePrice || product.finalPrice || product.price;
+  const variant = await ProductVariant.findByPk(productVariantId, { include: [{ model: Product, as: "product" }] });
+  if (!variant) throw new ApiError(404, "Product variant not found");
 
-      // Format response to match frontend expectations
-      res.status(201).json({
-        message: "Item added to cart successfully",
-        cartItem: {
-          product_id: product_id,
-          quantity: parseInt(quantity),
-          selected: true,
-          price: responsePrice, // Use sale price if available
-          originalPrice: saleInfo?.originalPrice || product.finalPrice,
-          isOnSale: !!saleInfo,
-          discountType: saleInfo?.discountType || null,
-          discountValue: saleInfo?.discountValue || 0,
-          saleId: saleInfo?.saleId || null,
-          saleName: saleInfo?.saleName || null,
-          product: {
-            id: product.id,
-            name: product.name,
-            finalPrice: product.finalPrice || product.price,
-            image: product.image || product.image_url,
-            category: product.category,
-          },
-          name: product.name,
-          finalPrice: responsePrice, // Use sale price for consistency
-          image: product.image || product.image_url,
-          category: product.category,
-        },
-      });
-    } catch (error) {
-      console.error("Add to cart error:", error);
-      res.status(500).json({
-        message: "Failed to add item to cart",
-        error: error.message,
-        stack: error.stack,
-        requestBody: JSON.stringify(req.body),
-      });
-    }
-  },
+  const existing = await CartItem.findOne({ where: { userId, productVariantId } });
+  const desiredQty = qty + (existing ? existing.quantity : 0);
+  if (variant.quantity < desiredQty) {
+    throw new ApiError(400, `Only ${variant.quantity} in stock`);
+  }
 
-  // Get user's cart
-  getCart: async (req, res) => {
-    try {
-      const userId = req.user.id;
+  let item;
+  if (existing) {
+    item = await existing.update({ quantity: desiredQty, saleId: saleId || existing.saleId });
+  } else {
+    item = await CartItem.create({
+      userId,
+      productId: variant.productId,
+      productVariantId,
+      quantity: qty,
+      saleId: saleId || null,
+    });
+  }
 
-      const cartItems = await CartItem.findByUserId(userId);
-      const cartTotal = await CartItem.getCartTotal(userId);
+  const full = await CartItem.findByPk(item.id, { include: ITEM_INCLUDES });
+  sendSuccess(res, { status: 201, message: "Item added to cart successfully", data: serializeCartItem(full) });
+});
 
-      res.status(200).json({
-        cartItems,
-        cartTotal,
-        itemCount: cartItems.length,
-      });
-    } catch (error) {
-      console.error("Get cart error:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to fetch cart", error: error.message });
-    }
-  },
+exports.getCart = asyncHandler(async (req, res) => {
+  const items = await CartItem.findAll({ where: { userId: req.user.id }, include: ITEM_INCLUDES, order: [["createdAt", "DESC"]] });
+  const serialized = items.map(serializeCartItem);
+  const cartTotal = serialized.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  sendSuccess(res, { data: { cartItems: serialized, cartTotal, itemCount: serialized.length } });
+});
 
-  // Update cart item quantity
-  updateCartItem: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const { productId } = req.params;
-      const { quantity, selected } = req.body;
+exports.updateCartItem = asyncHandler(async (req, res) => {
+  const { variantId } = req.params;
+  const { quantity, selected } = req.body;
 
-      if (!quantity || isNaN(parseInt(quantity)) || parseInt(quantity) < 1) {
-        return res.status(400).json({ message: "Valid quantity is required" });
-      }
+  const item = await CartItem.findOne({ where: { userId: req.user.id, productVariantId: variantId } });
+  if (!item) throw new ApiError(404, "Item not found in cart");
 
-      // Check if item exists in cart
-      const cartItem = await CartItem.findByUserAndProductId(userId, productId);
-      if (!cartItem) {
-        return res.status(404).json({ message: "Item not found in cart" });
-      }
+  const updates = {};
+  if (quantity !== undefined) {
+    const qty = parseInt(quantity, 10);
+    if (!Number.isFinite(qty) || qty < 1) throw new ApiError(400, "Valid quantity is required");
+    const variant = await ProductVariant.findByPk(variantId);
+    if (variant.quantity < qty) throw new ApiError(400, `Only ${variant.quantity} in stock`);
+    updates.quantity = qty;
+  }
+  if (selected !== undefined) updates.selected = !!selected;
 
-      // Check if product exists and has sufficient stock
-      const product = await Product.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
+  await item.update(updates);
+  const full = await CartItem.findByPk(item.id, { include: ITEM_INCLUDES });
+  sendSuccess(res, { message: "Cart item updated successfully", data: serializeCartItem(full) });
+});
 
-      if (product.quantity < parseInt(quantity)) {
-        return res.status(400).json({
-          message: "Cannot update quantity due to stock limitations",
-          availableStock: product.quantity,
-        });
-      }
+exports.toggleCartItem = asyncHandler(async (req, res) => {
+  const item = await CartItem.findOne({ where: { userId: req.user.id, productVariantId: req.params.variantId } });
+  if (!item) throw new ApiError(404, "Item not found in cart");
+  await item.update({ selected: !item.selected });
+  const full = await CartItem.findByPk(item.id, { include: ITEM_INCLUDES });
+  sendSuccess(res, { message: "Cart item selection toggled successfully", data: serializeCartItem(full) });
+});
 
-      // Update quantity (and selected status if provided)
-      await CartItem.updateQuantity(
-        userId,
-        productId,
-        parseInt(quantity),
-        selected
-      );
+exports.removeFromCart = asyncHandler(async (req, res) => {
+  const deleted = await CartItem.destroy({ where: { userId: req.user.id, productVariantId: req.params.variantId } });
+  if (!deleted) throw new ApiError(404, "Item not found in cart");
+  sendSuccess(res, { message: "Item removed from cart successfully" });
+});
 
-      // Get updated cart item to return
-      const updatedItem = await CartItem.findByUserAndProductId(
-        userId,
-        productId
-      );
+exports.clearCart = asyncHandler(async (req, res) => {
+  await CartItem.destroy({ where: { userId: req.user.id } });
+  sendSuccess(res, { message: "Cart cleared successfully" });
+});
 
-      res.status(200).json({
-        message: "Cart item updated successfully",
-        item: {
-          product_id: productId,
-          quantity: parseInt(quantity),
-          selected: selected !== undefined ? selected : updatedItem.selected,
-          product: {
-            id: product.id,
-            name: product.name,
-            finalPrice: product.finalPrice || product.price,
-            image: product.image || product.image_url,
-            category: product.category,
-          },
-        },
-      });
-    } catch (error) {
-      console.error("Update cart item error:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to update cart item", error: error.message });
-    }
-  },
-
-  // Toggle cart item selection
-  toggleCartItem: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const { productId } = req.params;
-
-      // Check if item exists in cart
-      const cartItem = await CartItem.findByUserAndProductId(userId, productId);
-      if (!cartItem) {
-        return res.status(404).json({ message: "Item not found in cart" });
-      }
-
-      // Toggle selection
-      await CartItem.toggleSelection(userId, productId);
-
-      // Get updated cart item
-      const updatedItem = await CartItem.findByUserAndProductId(
-        userId,
-        productId
-      );
-      const product = await Product.findById(productId);
-
-      res.status(200).json({
-        message: "Cart item selection toggled successfully",
-        item: {
-          product_id: productId,
-          quantity: updatedItem.quantity,
-          selected: Boolean(updatedItem.selected),
-          product: {
-            id: product.id,
-            name: product.name,
-            finalPrice: product.finalPrice || product.price,
-            image: product.image || product.image_url,
-            category: product.category,
-          },
-        },
-      });
-    } catch (error) {
-      console.error("Toggle cart item error:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to toggle cart item", error: error.message });
-    }
-  },
-
-  // Remove item from cart
-  removeFromCart: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const { productId } = req.params;
-
-      // Check if item exists in cart
-      const cartItem = await CartItem.findByUserAndProductId(userId, productId);
-      if (!cartItem) {
-        return res.status(404).json({ message: "Item not found in cart" });
-      }
-
-      // Remove item
-      await CartItem.removeItem(userId, productId);
-
-      res.status(200).json({
-        message: "Item removed from cart successfully",
-        product_id: productId,
-      });
-    } catch (error) {
-      console.error("Remove from cart error:", error);
-      res.status(500).json({
-        message: "Failed to remove item from cart",
-        error: error.message,
-      });
-    }
-  },
-
-  // Clear cart
-  clearCart: async (req, res) => {
-    try {
-      const userId = req.user.id;
-
-      await CartItem.clearCart(userId);
-
-      res.status(200).json({
-        message: "Cart cleared successfully",
-      });
-    } catch (error) {
-      console.error("Clear cart error:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to clear cart", error: error.message });
-    }
-  },
-
-  // Get cart count (for showing in UI badge)
-  getCartCount: async (req, res) => {
-    try {
-      const userId = req.user.id;
-
-      const count = await CartItem.getCartCount(userId);
-
-      res.status(200).json({ count });
-    } catch (error) {
-      console.error("Get cart count error:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to get cart count", error: error.message });
-    }
-  },
-};
-
-module.exports = cartController;
+exports.getCartCount = asyncHandler(async (req, res) => {
+  const count = await CartItem.count({ where: { userId: req.user.id } });
+  sendSuccess(res, { data: { count } });
+});

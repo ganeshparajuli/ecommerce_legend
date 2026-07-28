@@ -1,260 +1,95 @@
-const PromoCode = require("../model/promoModel");
+const { Op } = require("sequelize");
+const { PromoCode } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-const promoCodeController = {
-  // Create a new promo code (admin only)
-  createPromoCode: async (req, res) => {
-    try {
-      // Check if promo code already exists
-      const existingPromoCode = await PromoCode.findByCode(req.body.code);
-      if (existingPromoCode) {
-        return res.status(400).json({
-          success: false,
-          message: "Promo code already exists",
-        });
-      }
+exports.createPromoCode = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["code", "maxDiscountAmount", "validFrom", "validUntil"]);
+  const existing = await PromoCode.findOne({ where: { code: req.body.code } });
+  if (existing) throw new ApiError(400, "Promo code already exists");
 
-      // Create new promo code (constructor handles the object)
-      const promoCode = new PromoCode(req.body);
-      const savedPromoCode = await promoCode.save();
+  const promoCode = await PromoCode.create({
+    code: req.body.code,
+    description: req.body.description,
+    minPurchase: req.body.minPurchase || 0,
+    maxDiscountAmount: req.body.maxDiscountAmount,
+    validFrom: req.body.validFrom,
+    validUntil: req.body.validUntil,
+    maxUses: req.body.maxUses || 0,
+    isActive: req.body.isActive !== undefined ? !!req.body.isActive : true,
+  });
+  sendSuccess(res, { status: 201, message: "Promo code created successfully", data: promoCode });
+});
 
-      res.status(201).json({
-        success: true,
-        message: "Promo code created successfully",
-        data: savedPromoCode,
-      });
-    } catch (error) {
-      console.error("Error creating promo code:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to create promo code",
-        error: error.message,
-      });
-    }
-  },
+exports.getAllPromoCodes = asyncHandler(async (req, res) => {
+  const promoCodes = await PromoCode.findAll({ order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { data: promoCodes, meta: { count: promoCodes.length } });
+});
 
-  // Get all promo codes (admin only)
-  getAllPromoCodes: async (req, res) => {
-    try {
-      const promoCodes = await PromoCode.findAll();
+exports.getPromoCodeById = asyncHandler(async (req, res) => {
+  const promoCode = await PromoCode.findByPk(req.params.id);
+  if (!promoCode) throw new ApiError(404, "Promo code not found");
+  sendSuccess(res, { message: "Promo fetched successfully", data: promoCode });
+});
 
-      res.status(200).json({
-        success: true,
-        count: promoCodes.length,
-        data: promoCodes,
-      });
-    } catch (error) {
-      console.error("Error fetching promo codes:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch promo codes",
-        error: error.message,
-      });
-    }
-  },
+exports.updatePromoCode = asyncHandler(async (req, res) => {
+  const promoCode = await PromoCode.findByPk(req.params.id);
+  if (!promoCode) throw new ApiError(404, "Promo code not found");
 
-  // Get promo code by ID (admin only)
-  getPromoCodeById: async (req, res) => {
-    try {
-      const { id } = req.params;
+  if (req.body.code && req.body.code !== promoCode.code) {
+    const codeExists = await PromoCode.findOne({ where: { code: req.body.code } });
+    if (codeExists) throw new ApiError(400, "Promo code already exists");
+  }
 
-      const promoCode = await PromoCode.findById(id);
+  const allowed = ["code", "description", "minPurchase", "maxDiscountAmount", "validFrom", "validUntil", "maxUses", "isActive"];
+  const updates = {};
+  for (const field of allowed) if (req.body[field] !== undefined) updates[field] = req.body[field];
 
-      if (!promoCode) {
-        return res.status(404).json({
-          success: false,
-          message: "Promo code not found",
-        });
-      }
+  await promoCode.update(updates);
+  sendSuccess(res, { message: "Promo code updated successfully", data: promoCode });
+});
 
-      res.status(200).json({
-        success: true,
-        message: "Promo Fetched Successfully",
-        data: promoCode,
-      });
-    } catch (error) {
-      console.error("Error fetching promo code:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch promo code",
-        error: error.message,
-      });
-    }
-  },
+exports.deletePromoCode = asyncHandler(async (req, res) => {
+  const deleted = await PromoCode.destroy({ where: { id: req.params.id } });
+  if (!deleted) throw new ApiError(404, "Promo code not found");
+  sendSuccess(res, { message: "Promo code deleted successfully" });
+});
 
-  // Update promo code (admin only)
-  updatePromoCode: async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log("Updating promo code ID:", id);
-      console.log("Received update data:", req.body);
+exports.validatePromoCode = asyncHandler(async (req, res) => {
+  const { code, purchaseAmount } = req.body;
+  requireFields(req.body, ["code"]);
+  if (purchaseAmount === undefined) throw new ApiError(400, "Purchase amount is required");
 
-      // Check if promo code exists
-      const existingPromoCode = await PromoCode.findById(id);
-      if (!existingPromoCode) {
-        return res.status(404).json({
-          success: false,
-          message: "Promo code not found",
-        });
-      }
+  const promo = await PromoCode.findOne({ where: { code } });
+  if (!promo) throw new ApiError(400, "Invalid promo code");
 
-      // Check if updating the code, and if so, ensure it's unique
-      if (req.body.code && req.body.code !== existingPromoCode.code) {
-        const codeExists = await PromoCode.findByCode(req.body.code);
-        if (codeExists) {
-          return res.status(400).json({
-            success: false,
-            message: "Promo code already exists",
-          });
-        }
-      }
+  const now = new Date();
+  if (!promo.isActive) throw new ApiError(400, "This promo code is not active");
+  if (now < promo.validFrom || now > promo.validUntil) throw new ApiError(400, "This promo code has expired");
+  if (purchaseAmount < promo.minPurchase) {
+    throw new ApiError(400, `Minimum purchase of ${promo.minPurchase} required`);
+  }
 
-      // Prepare update object with camelCase keys
-      const updates = {};
-      if (req.body.code) updates.code = req.body.code;
-      if (req.body.description) updates.description = req.body.description;
-      if (req.body.minPurchase !== undefined)
-        updates.minPurchase = req.body.minPurchase;
-      if (req.body.validFrom) updates.validFrom = req.body.validFrom;
-      if (req.body.validUntil) updates.validUntil = req.body.validUntil;
-      if (req.body.maxUses !== undefined) updates.maxUses = req.body.maxUses;
-      if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
+  const discountAmount = Math.min(promo.maxDiscountAmount, purchaseAmount);
+  sendSuccess(res, {
+    message: "Promo code is valid",
+    data: { promoCode: promo, discountAmount, finalAmount: purchaseAmount - discountAmount },
+  });
+});
 
-      const updatedPromoCode = await PromoCode.updatePromoCode(id, updates);
+exports.getActivePromoCodes = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const promoCodes = await PromoCode.findAll({
+    where: { isActive: true, validFrom: { [Op.lte]: now }, validUntil: { [Op.gte]: now } },
+  });
+  sendSuccess(res, { data: promoCodes, meta: { count: promoCodes.length } });
+});
 
-      res.status(200).json({
-        success: true,
-        message: "Promo code updated successfully",
-        data: updatedPromoCode,
-      });
-    } catch (error) {
-      console.error("Error updating promo code:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to update promo code",
-        error: error.message,
-      });
-    }
-  },
-
-  // Delete promo code (admin only)
-  deletePromoCode: async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      const success = await PromoCode.deletePromoCode(id);
-
-      if (!success) {
-        return res.status(404).json({
-          success: false,
-          message: "Promo code not found",
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Promo code deleted successfully",
-      });
-    } catch (error) {
-      console.error("Error deleting promo code:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to delete promo code",
-        error: error.message,
-      });
-    }
-  },
-
-  // Validate a promo code (for users during checkout)
-  validatePromoCode: async (req, res) => {
-    try {
-      const { code, purchaseAmount } = req.body;
-
-      if (!code) {
-        return res.status(400).json({
-          success: false,
-          message: "Promo code is required",
-        });
-      }
-
-      if (!purchaseAmount && purchaseAmount !== 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Purchase amount is required",
-        });
-      }
-
-      const validationResult = await PromoCode.validatePromoCode(
-        code,
-        purchaseAmount
-      );
-
-      if (!validationResult.valid) {
-        return res.status(400).json({
-          success: false,
-          message: validationResult.message,
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: validationResult.message,
-        data: {
-          promoCode: validationResult.promoCode,
-          discountAmount: validationResult.discountAmount,
-          finalAmount: validationResult.finalAmount,
-        },
-      });
-    } catch (error) {
-      console.error("Error validating promo code:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to validate promo code",
-        error: error.message,
-      });
-    }
-  },
-
-  // Get active promo codes (for users to see available promo codes)
-  getActivePromoCodes: async (req, res) => {
-    try {
-      const promoCodes = await PromoCode.findActiveAndValid();
-
-      res.status(200).json({
-        success: true,
-        count: promoCodes.length,
-        data: promoCodes,
-      });
-    } catch (error) {
-      console.error("Error fetching active promo codes:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch active promo codes",
-        error: error.message,
-      });
-    }
-  },
-
-  // Run auto-expiration (can be called via cron job or manually by admin)
-  runAutoExpiration: async (req, res) => {
-    try {
-      const result = await PromoCode.autoExpirePromoCodes();
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-        data: {
-          expiredCount: result.expiredCount,
-        },
-      });
-    } catch (error) {
-      console.error("Error running auto-expiration:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to run auto-expiration",
-        error: error.message,
-      });
-    }
-  },
-};
-
-module.exports = promoCodeController;
+exports.runAutoExpiration = asyncHandler(async (req, res) => {
+  const [expiredCount] = await PromoCode.update(
+    { isActive: false },
+    { where: { isActive: true, validUntil: { [Op.lt]: new Date() } } }
+  );
+  sendSuccess(res, { message: `${expiredCount} promo code(s) expired`, data: { expiredCount } });
+});

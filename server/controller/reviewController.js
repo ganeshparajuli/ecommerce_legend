@@ -1,86 +1,94 @@
-const Review = require("../model/reviewModel");
+const { Review, Product, sequelize } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-const getAllReviews = async (req, res) => {
-  try {
-    const reviews = await Review.findAll();
-    res.status(200).json(reviews);
-  } catch (error) {
-    console.error("Error getting reviews:", error);
-    res.status(500).json({ message: "Failed to fetch reviews" });
+async function recalculateProductRating(productId, transaction) {
+  const [result] = await Review.findAll({
+    where: { productId },
+    attributes: [
+      [sequelize.fn("AVG", sequelize.col("rating")), "avgRating"],
+      [sequelize.fn("COUNT", sequelize.col("id")), "count"],
+    ],
+    raw: true,
+    transaction,
+  });
+  await Product.update(
+    { rating: parseFloat(result.avgRating) || 0, reviewCount: parseInt(result.count, 10) || 0 },
+    { where: { id: productId }, transaction }
+  );
+}
+
+exports.getAllReviews = asyncHandler(async (req, res) => {
+  const reviews = await Review.findAll({ order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { data: reviews });
+});
+
+exports.getReviewById = asyncHandler(async (req, res) => {
+  const review = await Review.findByPk(req.params.id);
+  if (!review) throw new ApiError(404, "Review not found");
+  sendSuccess(res, { data: review });
+});
+
+exports.getReviewsByProductId = asyncHandler(async (req, res) => {
+  const reviews = await Review.findAll({ where: { productId: req.params.productId }, order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { data: reviews });
+});
+
+exports.createReview = asyncHandler(async (req, res) => {
+  const { product_id, reviewer_name, rating, comment } = req.body;
+  requireFields(req.body, ["product_id", "reviewer_name", "rating", "comment"]);
+
+  const product = await Product.findByPk(product_id);
+  if (!product) throw new ApiError(404, "Product not found");
+
+  const ratingNum = parseInt(rating, 10);
+  if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+    throw new ApiError(400, "Rating must be between 1 and 5");
   }
-};
 
-const getReviewById = async (req, res) => {
-  try {
-    const review = await Review.findById(req.params.id);
-    if (!review) {
-      return res.status(404).json({ message: "Review not found" });
-    }
-    res.status(200).json(review);
-  } catch (error) {
-    console.error("Error getting review:", error);
-    res.status(500).json({ message: "Failed to fetch review" });
+  const review = await sequelize.transaction(async (t) => {
+    const created = await Review.create(
+      { productId: product_id, userId: req.user?.id || null, reviewerName: reviewer_name, rating: ratingNum, comment },
+      { transaction: t }
+    );
+    await recalculateProductRating(product_id, t);
+    return created;
+  });
+
+  sendSuccess(res, { status: 201, message: "Review created", data: review });
+});
+
+exports.updateReview = asyncHandler(async (req, res) => {
+  const review = await Review.findByPk(req.params.id);
+  if (!review) throw new ApiError(404, "Review not found");
+
+  const { rating, comment } = req.body;
+  const updates = {};
+  if (rating !== undefined) {
+    const ratingNum = parseInt(rating, 10);
+    if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) throw new ApiError(400, "Rating must be between 1 and 5");
+    updates.rating = ratingNum;
   }
-};
+  if (comment !== undefined) updates.comment = comment;
 
-const getReviewsByProductId = async (req, res) => {
-  try {
-    const reviews = await Review.findByProductId(req.params.productId);
-    res.status(200).json(reviews);
-  } catch (error) {
-    console.error("Error getting product reviews:", error);
-    res.status(500).json({ message: "Failed to fetch product reviews" });
-  }
-};
+  await sequelize.transaction(async (t) => {
+    await review.update(updates, { transaction: t });
+    if (updates.rating !== undefined) await recalculateProductRating(review.productId, t);
+  });
 
-const createReview = async (req, res) => {
-  try {
-    const { product_id, reviewer_name, rating, comment } = req.body;
+  sendSuccess(res, { message: "Review updated" });
+});
 
-    if (!product_id || !reviewer_name || !rating || !comment) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+exports.deleteReview = asyncHandler(async (req, res) => {
+  const review = await Review.findByPk(req.params.id);
+  if (!review) throw new ApiError(404, "Review not found");
 
-    const newReview = await Review.create({
-      product_id,
-      reviewer_name,
-      rating,
-      comment,
-    });
+  await sequelize.transaction(async (t) => {
+    const productId = review.productId;
+    await review.destroy({ transaction: t });
+    await recalculateProductRating(productId, t);
+  });
 
-    res.status(201).json({ message: "Review created", id: newReview.id });
-  } catch (error) {
-    console.error("Error creating review:", error);
-    res.status(500).json({ message: "Failed to create review" });
-  }
-};
-
-const updateReview = async (req, res) => {
-  try {
-    const { rating, comment } = req.body;
-    await Review.update(req.params.id, { rating, comment });
-    res.status(200).json({ message: "Review updated" });
-  } catch (error) {
-    console.error("Error updating review:", error);
-    res.status(500).json({ message: "Failed to update review" });
-  }
-};
-
-const deleteReview = async (req, res) => {
-  try {
-    await Review.delete(req.params.id);
-    res.status(200).json({ message: "Review deleted" });
-  } catch (error) {
-    console.error("Error deleting review:", error);
-    res.status(500).json({ message: "Failed to delete review" });
-  }
-};
-
-module.exports = {
-  getAllReviews,
-  getReviewById,
-  getReviewsByProductId,
-  createReview,
-  updateReview,
-  deleteReview,
-};
+  sendSuccess(res, { message: "Review deleted" });
+});

@@ -53,7 +53,6 @@ export const DeleteProduct: ActionTypes = {
   Fail: "deleteProductFail",
 };
 
-// NEW: Bulk Delete Actions
 export const BulkDeleteProducts: ActionTypes = {
   Request: "bulkDeleteProductsRequest",
   Success: "bulkDeleteProductsSuccess",
@@ -61,7 +60,6 @@ export const BulkDeleteProducts: ActionTypes = {
   Fail: "bulkDeleteProductsFail",
 };
 
-// NEW: Hard Delete Actions
 export const HardDeleteProduct: ActionTypes = {
   Request: "hardDeleteProductRequest",
   Success: "hardDeleteProductSuccess",
@@ -69,14 +67,12 @@ export const HardDeleteProduct: ActionTypes = {
   Fail: "hardDeleteProductFail",
 };
 
-// NEW: Get Deleted Products Actions
 export const GetDeletedProducts: ActionTypes = {
   Request: "getDeletedProductsRequest",
   Success: "getDeletedProductsSuccess",
   Fail: "getDeletedProductsFail",
 };
 
-// NEW: Restore Products Actions
 export const RestoreProduct: ActionTypes = {
   Request: "restoreProductRequest",
   Success: "restoreProductSuccess",
@@ -84,7 +80,6 @@ export const RestoreProduct: ActionTypes = {
   Fail: "restoreProductFail",
 };
 
-// NEW: Bulk Restore Actions
 export const BulkRestoreProducts: ActionTypes = {
   Request: "bulkRestoreProductsRequest",
   Success: "bulkRestoreProductsSuccess",
@@ -96,25 +91,6 @@ export const ProductsByCategory: ActionTypes = {
   Request: "productsByCategoryRequest",
   Success: "productsByCategorySuccess",
   Fail: "productsByCategoryFail",
-};
-
-export const ProductsByColor: ActionTypes = {
-  Request: "productsByColorRequest",
-  Success: "productsByColorSuccess",
-  Fail: "productsByColorFail",
-};
-
-export const ProductsByPriceRange: ActionTypes = {
-  Request: "productsByPriceRangeRequest",
-  Success: "productsByPriceRangeSuccess",
-  Fail: "productsByPriceRangeFail",
-};
-
-export const UpdateProductImage: ActionTypes = {
-  Request: "updateProductImageRequest",
-  Success: "updateProductImageSuccess",
-  Reset: "updateProductImageReset",
-  Fail: "updateProductImageFail",
 };
 
 export const UpdateProductStock: ActionTypes = {
@@ -133,82 +109,91 @@ export const UpdateProductRating: ActionTypes = {
 
 export const ClearProductErrors: string = "clearProductErrors";
 
-// Product type that matches your backend model
+// ---- Variant-first product model (matches the Postgres/Sequelize backend) ----
+
+export type ProductVariantAttributes = Record<string, string>;
+
+export type ProductVariant = {
+  id: string;
+  productId?: string;
+  sku: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  quantity: number;
+  attributes: ProductVariantAttributes;
+  isDefault: boolean;
+};
+
+export type ProductImageItem = {
+  id?: string;
+  url: string;
+  sortOrder?: number;
+  isPrimary?: boolean;
+};
+
+export type PriceRange = { min: number; max: number };
+
+// Product type: real API fields plus derived convenience fields (computed once at fetch
+// time in productAction.ts) so the many display-only screens that show a single price/
+// stock/color don't each need to know about variants.
 export type Product = {
   id: string;
   name: string;
-  brand: string | null;
-  category: string | null;
+  slug?: string | null;
+  brandId: string | null;
+  categoryId: string | null;
   description: string | null;
-  actualPrice: number | null;
-  discountPrice: number | null;
-  finalPrice: number | null;
-  originalPrice?: number | null;
-  savings?: number | null;
-  quantity: number;  // This is 'stock' in backend
-  featured: boolean;
-  image: string | null;  // JSON string of image paths
-  color: string | null;
-  sku: string;
-  keyFeatures: string[] | string;  // Can be JSON string or array
-  specifications: Record<string, any> | string;  // Can be JSON string or object
   productDetails: string | null;
+  keyFeatures: string[];
+  specifications: Record<string, any>;
+  tags: string[];
   rating: number;
   reviewCount: number;
   availability: string;
-  tags: string[] | string;  // Can be JSON string or array
+  sku: string;
+  images: ProductImageItem[];
+  variants: ProductVariant[];
+  priceRange: PriceRange;
+  defaultVariant: ProductVariant;
   created_at: string | Date;
   updated_at: string | Date;
-  deleted_at?: string | Date | null; // NEW: For soft delete tracking
-  isDeleted?: boolean; // NEW: For tracking deletion status
+  deleted_at?: string | Date | null;
+  isDeleted?: boolean;
+
+  // Derived (view-model) fields - kept for screens that only need a single price/stock/color.
+  brand: string | null;
+  category: string | null;
+  image: string[];
+  finalPrice: number;
+  actualPrice: number;
+  discountPrice: number;
+  originalPrice: number | null;
+  quantity: number;
+  color: string | null;
+  featured: boolean;
 };
 
-// Helper type for parsed images
-export type ParsedProductImages = string[];
-
-// Search criteria type
 export type ProductSearchCriteria = {
   name?: string;
-  brand?: string;
-  category?: string;
+  brandId?: string;
+  categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
-  color?: string;
 };
 
-export type ProductFilter = {
-  name?: string;
-  brand?: string;
-  category?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  inStock?: boolean;
-  color?: string;
+export type ProductFilter = ProductSearchCriteria & {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 };
 
-// NEW: Bulk operation types
-export type BulkOperationRequest = {
-  productIds: string[];
-  action: 'soft-delete' | 'hard-delete' | 'restore';
-};
-
-export type BulkOperationResponse = {
-  success: boolean;
-  affectedCount: number;
-  message: string;
-  errors?: string[];
-};
-
 export type ProductState = {
   products: Product[];
   featuredProducts: Product[];
   searchResults: Product[];
-  deletedProducts: Product[]; // NEW: For deleted products
+  deletedProducts: Product[];
   product: Product | null;
   loading: boolean;
   error: string | null;
@@ -218,28 +203,17 @@ export type ProductState = {
   filteredProductCount: number;
   isUpdated: boolean;
   isDeleted: boolean;
-  isBulkDeleted: boolean; // NEW: For bulk delete status
-  isRestored: boolean; // NEW: For restore status
-  isBulkRestored: boolean; // NEW: For bulk restore status
+  isBulkDeleted: boolean;
+  isRestored: boolean;
+  isBulkRestored: boolean;
   filters: ProductFilter;
   searchLoading: boolean;
   searchError: string | null;
-  deletedLoading: boolean; // NEW: For deleted products loading
-  deletedError: string | null; // NEW: For deleted products errors
-  selectedProductIds: string[]; // NEW: For bulk operations
+  deletedLoading: boolean;
+  deletedError: string | null;
+  selectedProductIds: string[];
 };
 
-// Helper function to parse product images from JSON string
-export const parseProductImages = (imageData: string | null): string[] => {
-  if (!imageData) return [];
-  try {
-    return JSON.parse(imageData);
-  } catch {
-    return [];
-  }
-};
-
-// Helper function to parse JSON fields
 export const parseJSONField = <T>(field: string | T | null, defaultValue: T): T => {
   if (!field) return defaultValue;
   if (typeof field === 'string') {

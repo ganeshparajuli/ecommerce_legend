@@ -43,7 +43,7 @@ try {
 
   dispatch({
     type: GetAllSales.Success,
-    payload: data?.sales,
+    payload: data?.data?.sales,
   });
 
   return data;
@@ -69,11 +69,11 @@ try {
 
   const { data } = await api.get(`sale/${id}`);
 
-  console.log("Sale details fetched successfully:", data.sale);
+  console.log("Sale details fetched successfully:", data.data?.sale);
 
   dispatch({
     type: GetSaleDetails.Success,
-    payload: data.sale,
+    payload: data.data?.sale,
   });
 
   return data;
@@ -98,11 +98,11 @@ try {
 
   const { data } = await api.post("sale/create", saleData);
 
-  console.log("Sale created successfully:", data.sale);
+  console.log("Sale created successfully:", data.data?.sale);
 
   dispatch({
     type: CreateSale.Success,
-    payload: data.sale,
+    payload: data.data?.sale,
   });
 
   return data;
@@ -127,11 +127,11 @@ try {
 
   const { data } = await api.put(`sale/${id}`, saleData);
 
-  console.log("Sale updated successfully:", data.sale);
+  console.log("Sale updated successfully:", data.data?.sale);
 
   dispatch({
     type: UpdateSale.Success,
-    payload: data.sale,
+    payload: data.data?.sale,
   });
 
   return data;
@@ -187,12 +187,12 @@ try {
 
   console.log(
     `Sales with status '${status}' fetched successfully:`,
-    data.sales
+    data.data?.sales
   );
 
   dispatch({
     type: SalesByStatus.Success,
-    payload: data.sales,
+    payload: data.data?.sales,
   });
 
   return data;
@@ -219,12 +219,12 @@ try {
 
   console.log(
     `Products for sale ID: ${id} fetched successfully:`,
-    data.products
+    data.data?.products
   );
 
   dispatch({
     type: SaleProducts.Success,
-    payload: data.products,
+    payload: data.data?.products,
   });
 
   return data;
@@ -278,11 +278,11 @@ try {
 
   const { data } = await api.get("sale/analytics");
 
-  console.log("Sales analytics fetched successfully:", data.analytics);
+  console.log("Sales analytics fetched successfully:", data.data?.analytics);
 
   dispatch({
     type: SalesAnalytics.Success,
-    payload: data.analytics,
+    payload: data.data?.analytics,
   });
 
   return data;
@@ -307,11 +307,11 @@ try {
 
   const { data } = await api.get(`sale/${saleId}/gifts`);
 
-  console.log("Sale gifts fetched successfully:", data.gifts);
+  console.log("Sale gifts fetched successfully:", data.data?.gifts);
 
   dispatch({
     type: GetSaleGifts.Success,
-    payload: data.gifts,
+    payload: data.data?.gifts,
   });
 
   return data;
@@ -371,11 +371,11 @@ try {
 
   const { data } = await api.post(`sale/${saleId}/calculate-gifts`, { cartItems });
 
-  console.log("Cart gifts calculated successfully:", data.applicableGifts);
+  console.log("Cart gifts calculated successfully:", data.data?.applicableGifts);
 
   dispatch({
     type: CalculateCartGifts.Success,
-    payload: data.applicableGifts,
+    payload: data.data?.applicableGifts,
   });
 
   return data;

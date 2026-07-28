@@ -209,15 +209,15 @@ import {
       dispatch({ type: GetSplashDetails.Request });
   
       const { data } = await api.get(`splash/${id}`);
-      
+
       // Immediately clone the response
       const safeData = jsonDeepClone(data);
-      
-      if (safeData.success === false || !safeData.splash) {
+
+      if (safeData.success === false || !safeData.data) {
         throw new Error(safeData.message || "Splash screen not found");
       }
-  
-      const processedSplash = safeSplashClone(safeData.splash);
+
+      const processedSplash = safeSplashClone(safeData.data);
   
       dispatch({
         type: GetSplashDetails.Success,
@@ -239,14 +239,14 @@ import {
       // Clone input data to prevent mutations
       const safeInput = jsonDeepClone(splashData);
       const { data } = await api.post("splash/", safeInput);
-      
+
       // Clone response data
       const safeData = jsonDeepClone(data);
       const processedData = {
         ...safeData,
-        splash: safeData.splash ? safeSplashClone(safeData.splash) : null
+        splash: safeData.data ? safeSplashClone(safeData.data) : null
       };
-      
+
       dispatch({
         type: CreateSplash.Success,
         payload: processedData,
@@ -267,14 +267,14 @@ import {
       // Clone input data
       const safeInput = jsonDeepClone(splashData);
       const { data } = await api.put(`splash/${id}`, safeInput);
-  
+
       // Clone response data
       const safeData = jsonDeepClone(data);
       const processedData = {
         ...safeData,
-        splash: safeData.splash ? safeSplashClone(safeData.splash) : null
+        splash: safeData.data ? safeSplashClone(safeData.data) : null
       };
-  
+
       dispatch({
         type: UpdateSplash.Success,
         payload: processedData,
@@ -313,9 +313,9 @@ import {
       const safeData = jsonDeepClone(data);
       const processedData = {
         ...safeData,
-        splash: safeData.splash ? safeSplashClone(safeData.splash) : null
+        splash: safeData.data ? safeSplashClone(safeData.data) : null
       };
-  
+
       dispatch({
         type: ToggleSplashStatus.Success,
         payload: processedData,
@@ -377,10 +377,10 @@ import {
       
       const { data } = await api.get("splash/admin/stats");
       const safeData = jsonDeepClone(data);
-  
+
       dispatch({
         type: GetSplashStats.Success,
-        payload: safeData.stats || safeData,
+        payload: safeData.data?.stats || safeData.data || safeData,
       });
     } catch (error) {
       dispatch({

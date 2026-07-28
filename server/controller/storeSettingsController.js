@@ -1,448 +1,177 @@
-const { StoreSettings } = require("../model/storeSettingsModel");
+const crypto = require("crypto");
+const { StoreSettings } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
 
-// Get store settings
-exports.getStoreSettings = async (req, res) => {
-  try {
-    let settings = await StoreSettings.getSettings();
-    
-    // If no settings exist, initialize with defaults
-    if (!settings) {
-      settings = await StoreSettings.initializeDefaults();
-    }
-
-    res.json({
-      success: true,
-      data: settings,
-    });
-  } catch (error) {
-    console.error("Error fetching store settings:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch store settings",
-    });
-  }
+const EMAIL_RE = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+const DEFAULTS = {
+  storeName: "Joy Store",
+  storeEmail: "contact@joystore.com",
+  storePhone: "+977-01-4123456",
+  storeAddress: "Kathmandu, Nepal",
 };
 
-// Update store settings
-exports.updateStoreSettings = async (req, res) => {
-  try {
-    console.log('=== UPDATE STORE SETTINGS REQUEST ===');
-    console.log('req.body keys:', Object.keys(req.body));
-    console.log('req.files:', req.files);
-    console.log('subStoreLocations in body:', req.body.subStoreLocations);
-    
-    const updateData = { ...req.body };
+async function getOrCreateSettings() {
+  const [settings] = await StoreSettings.findOrCreate({ where: {}, defaults: DEFAULTS });
+  return settings;
+}
 
-    // ✅ Handle sub-store locations from request body
-    if (updateData.subStoreLocations) {
-      console.log('Raw subStoreLocations:', updateData.subStoreLocations);
-      console.log('Type of subStoreLocations:', typeof updateData.subStoreLocations);
-      
-      try {
-        // Parse if it's a string (from FormData)
-        if (typeof updateData.subStoreLocations === 'string') {
-          updateData.subStoreLocations = JSON.parse(updateData.subStoreLocations);
-          console.log('Parsed subStoreLocations:', updateData.subStoreLocations);
-        }
-        // Validate it's an array
-        if (!Array.isArray(updateData.subStoreLocations)) {
-          console.log('subStoreLocations is not an array, setting to empty array');
-          updateData.subStoreLocations = [];
-        }
-        console.log('Final subStoreLocations to save:', updateData.subStoreLocations);
-      } catch (parseError) {
-        console.error("Error parsing subStoreLocations:", parseError);
-        updateData.subStoreLocations = [];
+exports.getStoreSettings = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  sendSuccess(res, { data: settings });
+});
+
+exports.updateStoreSettings = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const updates = { ...req.body };
+
+  if (updates.subStoreLocations !== undefined) {
+    try {
+      if (typeof updates.subStoreLocations === "string") {
+        updates.subStoreLocations = JSON.parse(updates.subStoreLocations);
       }
-    } else {
-      console.log('No subStoreLocations in request body');
+      if (!Array.isArray(updates.subStoreLocations)) updates.subStoreLocations = [];
+    } catch {
+      updates.subStoreLocations = [];
     }
-
-    // Handle uploaded files
-    if (req.files) {
-      if (req.files.logo) {
-        updateData.logo = req.files.logo[0].filename;
-      }
-      if (req.files.footerLogo) {
-        updateData.footerLogo = req.files.footerLogo[0].filename;
-      }
-    } else if (req.file) {
-      // Handle single file upload (for backward compatibility)
-      updateData.logo = req.file.filename;
-    }
-
-    // Validate required fields if provided
-    if (updateData.storeEmail && !updateData.storeEmail.match(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid email format",
-      });
-    }
-
-    // Check if settings exist
-    const existingSettings = await StoreSettings.getSettings();
-    
-    if (existingSettings) {
-      // Update existing settings
-      await StoreSettings.updateFields(updateData);
-    } else {
-      // Create new settings with provided data
-      const newSettings = new StoreSettings({
-        storeName: updateData.storeName || 'Joy Electronics',
-        storeEmail: updateData.storeEmail || 'contact@joyelectronics.com',
-        storePhone: updateData.storePhone || '+977-01-4123456',
-        storeAddress: updateData.storeAddress || 'Kathmandu, Nepal',
-        ...updateData
-      });
-      await newSettings.save();
-    }
-
-    // Get updated settings
-    const updatedSettings = await StoreSettings.getSettings();
-
-    res.json({
-      success: true,
-      message: "Store settings updated successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error updating store settings:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to update store settings",
-    });
   }
-};
 
-// Update store logo
-exports.updateStoreLogo = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "No logo file provided",
-      });
-    }
+  if (req.files?.logo) updates.logo = `uploads/${req.files.logo[0].filename}`;
+  if (req.files?.footerLogo) updates.footerLogo = `uploads/${req.files.footerLogo[0].filename}`;
 
-    await StoreSettings.updateFields({ logo: req.file.filename });
-    const updatedSettings = await StoreSettings.getSettings();
-
-    res.json({
-      success: true,
-      message: "Store logo updated successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error updating store logo:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update store logo",
-    });
+  if (updates.storeEmail && !EMAIL_RE.test(updates.storeEmail)) {
+    throw new ApiError(400, "Invalid email format");
   }
-};
 
-// Update footer logo
-exports.updateFooterLogo = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "No footer logo file provided",
-      });
-    }
+  await settings.update(updates);
+  sendSuccess(res, { message: "Store settings updated successfully", data: settings });
+});
 
-    await StoreSettings.updateFields({ footerLogo: req.file.filename });
-    const updatedSettings = await StoreSettings.getSettings();
+exports.updateStoreLogo = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, "No logo file provided");
+  const settings = await getOrCreateSettings();
+  await settings.update({ logo: `uploads/${req.file.filename}` });
+  sendSuccess(res, { message: "Store logo updated successfully", data: settings });
+});
 
-    res.json({
-      success: true,
-      message: "Footer logo updated successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error updating footer logo:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update footer logo",
-    });
+exports.updateFooterLogo = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, "No footer logo file provided");
+  const settings = await getOrCreateSettings();
+  await settings.update({ footerLogo: `uploads/${req.file.filename}` });
+  sendSuccess(res, { message: "Footer logo updated successfully", data: settings });
+});
+
+exports.removeStoreLogo = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  await settings.update({ logo: null });
+  sendSuccess(res, { message: "Store logo removed successfully", data: settings });
+});
+
+exports.removeFooterLogo = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  await settings.update({ footerLogo: null });
+  sendSuccess(res, { message: "Footer logo removed successfully", data: settings });
+});
+
+// ---- Sub-store locations (stored as a JSONB array on the settings row) ----
+
+exports.getSubStoreLocations = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const locations = req.query.activeOnly === "true"
+    ? settings.subStoreLocations.filter((l) => l.isActive)
+    : settings.subStoreLocations;
+  sendSuccess(res, { data: locations, meta: { count: locations.length } });
+});
+
+exports.getSubStoreLocationById = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const location = settings.subStoreLocations.find((l) => l.id === req.params.locationId);
+  if (!location) throw new ApiError(404, "Sub-store location not found");
+  sendSuccess(res, { data: location });
+});
+
+exports.addSubStoreLocation = asyncHandler(async (req, res) => {
+  const { locationName, address, phone, email, isActive } = req.body;
+  if (!locationName || !address || !phone) {
+    throw new ApiError(400, "Location name, address, and phone are required");
   }
-};
+  if (email && !EMAIL_RE.test(email)) throw new ApiError(400, "Invalid email format");
 
-// Remove store logo
-exports.removeStoreLogo = async (req, res) => {
-  try {
-    await StoreSettings.updateFields({ logo: null });
-    const updatedSettings = await StoreSettings.getSettings();
+  const settings = await getOrCreateSettings();
+  const newLocation = {
+    id: `loc_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
+    locationName: locationName.trim(),
+    address: address.trim(),
+    phone: phone.trim(),
+    email: email ? email.trim() : "",
+    isActive: isActive !== undefined ? Boolean(isActive) : true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const locations = [...settings.subStoreLocations, newLocation];
+  await settings.update({ subStoreLocations: locations });
+  sendSuccess(res, { status: 201, message: "Sub-store location added successfully", data: newLocation });
+});
 
-    res.json({
-      success: true,
-      message: "Store logo removed successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error removing store logo:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to remove store logo",
-    });
-  }
-};
+exports.updateSubStoreLocation = asyncHandler(async (req, res) => {
+  if (req.body.email && !EMAIL_RE.test(req.body.email)) throw new ApiError(400, "Invalid email format");
 
-// Remove footer logo
-exports.removeFooterLogo = async (req, res) => {
-  try {
-    await StoreSettings.updateFields({ footerLogo: null });
-    const updatedSettings = await StoreSettings.getSettings();
+  const settings = await getOrCreateSettings();
+  const index = settings.subStoreLocations.findIndex((l) => l.id === req.params.locationId);
+  if (index === -1) throw new ApiError(404, "Sub-store location not found");
 
-    res.json({
-      success: true,
-      message: "Footer logo removed successfully",
-      data: updatedSettings,
-    });
-  } catch (error) {
-    console.error("Error removing footer logo:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to remove footer logo",
-    });
-  }
-};
+  const current = settings.subStoreLocations[index];
+  const updated = { ...current, updatedAt: new Date().toISOString() };
+  if (req.body.locationName) updated.locationName = req.body.locationName.trim();
+  if (req.body.address) updated.address = req.body.address.trim();
+  if (req.body.phone) updated.phone = req.body.phone.trim();
+  if (req.body.email !== undefined) updated.email = req.body.email ? req.body.email.trim() : "";
+  if (req.body.isActive !== undefined) updated.isActive = Boolean(req.body.isActive);
 
-// ✅ NEW SUB-STORE LOCATIONS CONTROLLERS
+  const locations = [...settings.subStoreLocations];
+  locations[index] = updated;
+  await settings.update({ subStoreLocations: locations });
+  sendSuccess(res, { message: "Sub-store location updated successfully", data: updated });
+});
 
-// Get all sub-store locations
-exports.getSubStoreLocations = async (req, res) => {
-  try {
-    const activeOnly = req.query.activeOnly === 'true';
-    const locations = await StoreSettings.getSubStoreLocations(activeOnly);
+exports.deleteSubStoreLocation = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const exists = settings.subStoreLocations.some((l) => l.id === req.params.locationId);
+  if (!exists) throw new ApiError(404, "Sub-store location not found");
 
-    res.json({
-      success: true,
-      data: locations,
-      count: locations.length,
-    });
-  } catch (error) {
-    console.error("Error fetching sub-store locations:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch sub-store locations",
-    });
-  }
-};
+  const locations = settings.subStoreLocations.filter((l) => l.id !== req.params.locationId);
+  await settings.update({ subStoreLocations: locations });
+  sendSuccess(res, { message: "Sub-store location deleted successfully" });
+});
 
-// Get specific sub-store location
-exports.getSubStoreLocationById = async (req, res) => {
-  try {
-    const { locationId } = req.params;
-    const location = await StoreSettings.getSubStoreLocationById(locationId);
+exports.toggleSubStoreLocationStatus = asyncHandler(async (req, res) => {
+  const settings = await getOrCreateSettings();
+  const index = settings.subStoreLocations.findIndex((l) => l.id === req.params.locationId);
+  if (index === -1) throw new ApiError(404, "Sub-store location not found");
 
-    if (!location) {
-      return res.status(404).json({
-        success: false,
-        error: "Sub-store location not found",
-      });
+  const locations = [...settings.subStoreLocations];
+  locations[index] = { ...locations[index], isActive: !locations[index].isActive, updatedAt: new Date().toISOString() };
+  await settings.update({ subStoreLocations: locations });
+  sendSuccess(res, {
+    message: `Sub-store location ${locations[index].isActive ? "activated" : "deactivated"} successfully`,
+    data: locations[index],
+  });
+});
+
+exports.bulkUpdateSubStoreLocations = asyncHandler(async (req, res) => {
+  const { locations } = req.body;
+  if (!Array.isArray(locations)) throw new ApiError(400, "Locations must be an array");
+
+  for (const [i, location] of locations.entries()) {
+    if (!location.locationName || !location.address || !location.phone) {
+      throw new ApiError(400, `Location ${i + 1}: Name, address, and phone are required`);
     }
-
-    res.json({
-      success: true,
-      data: location,
-    });
-  } catch (error) {
-    console.error("Error fetching sub-store location:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch sub-store location",
-    });
+    if (location.email && !EMAIL_RE.test(location.email)) {
+      throw new ApiError(400, `Location ${i + 1}: Invalid email format`);
+    }
   }
-};
 
-// Add new sub-store location
-exports.addSubStoreLocation = async (req, res) => {
-  try {
-    const { locationName, address, phone, email, isActive } = req.body;
-
-    // Validate required fields
-    if (!locationName || !address || !phone) {
-      return res.status(400).json({
-        success: false,
-        error: "Location name, address, and phone are required",
-      });
-    }
-
-    // Validate email format if provided
-    if (email && !email.match(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid email format",
-      });
-    }
-
-    const locationData = {
-      locationName: locationName.trim(),
-      address: address.trim(),
-      phone: phone.trim(),
-      email: email ? email.trim() : '',
-      isActive: isActive !== undefined ? Boolean(isActive) : true,
-    };
-
-    const newLocation = await StoreSettings.addSubStoreLocation(locationData);
-
-    res.status(201).json({
-      success: true,
-      message: "Sub-store location added successfully",
-      data: newLocation,
-    });
-  } catch (error) {
-    console.error("Error adding sub-store location:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to add sub-store location",
-    });
-  }
-};
-
-// Update sub-store location
-exports.updateSubStoreLocation = async (req, res) => {
-  try {
-    const { locationId } = req.params;
-    const updateData = req.body;
-
-    // Validate email format if provided
-    if (updateData.email && !updateData.email.match(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid email format",
-      });
-    }
-
-    // Clean up the update data
-    const cleanUpdateData = {};
-    if (updateData.locationName) cleanUpdateData.locationName = updateData.locationName.trim();
-    if (updateData.address) cleanUpdateData.address = updateData.address.trim();
-    if (updateData.phone) cleanUpdateData.phone = updateData.phone.trim();
-    if (updateData.email !== undefined) cleanUpdateData.email = updateData.email ? updateData.email.trim() : '';
-    if (updateData.isActive !== undefined) cleanUpdateData.isActive = Boolean(updateData.isActive);
-
-    const updatedLocation = await StoreSettings.updateSubStoreLocation(locationId, cleanUpdateData);
-
-    res.json({
-      success: true,
-      message: "Sub-store location updated successfully",
-      data: updatedLocation,
-    });
-  } catch (error) {
-    console.error("Error updating sub-store location:", error);
-    if (error.message === "Sub-store location not found") {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      });
-    }
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to update sub-store location",
-    });
-  }
-};
-
-// Delete sub-store location
-exports.deleteSubStoreLocation = async (req, res) => {
-  try {
-    const { locationId } = req.params;
-
-    await StoreSettings.deleteSubStoreLocation(locationId);
-
-    res.json({
-      success: true,
-      message: "Sub-store location deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting sub-store location:", error);
-    if (error.message === "Sub-store location not found") {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      });
-    }
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to delete sub-store location",
-    });
-  }
-};
-
-// Toggle sub-store location status (active/inactive)
-exports.toggleSubStoreLocationStatus = async (req, res) => {
-  try {
-    const { locationId } = req.params;
-
-    const updatedLocation = await StoreSettings.toggleSubStoreLocationStatus(locationId);
-
-    res.json({
-      success: true,
-      message: `Sub-store location ${updatedLocation.isActive ? 'activated' : 'deactivated'} successfully`,
-      data: updatedLocation,
-    });
-  } catch (error) {
-    console.error("Error toggling sub-store location status:", error);
-    if (error.message === "Sub-store location not found") {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      });
-    }
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to toggle sub-store location status",
-    });
-  }
-};
-
-// Bulk update sub-store locations (useful for frontend operations)
-exports.bulkUpdateSubStoreLocations = async (req, res) => {
-  try {
-    const { locations } = req.body;
-
-    if (!Array.isArray(locations)) {
-      return res.status(400).json({
-        success: false,
-        error: "Locations must be an array",
-      });
-    }
-
-    // Validate each location
-    for (let i = 0; i < locations.length; i++) {
-      const location = locations[i];
-      if (!location.locationName || !location.address || !location.phone) {
-        return res.status(400).json({
-          success: false,
-          error: `Location ${i + 1}: Name, address, and phone are required`,
-        });
-      }
-      if (location.email && !location.email.match(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)) {
-        return res.status(400).json({
-          success: false,
-          error: `Location ${i + 1}: Invalid email format`,
-        });
-      }
-    }
-
-    // Update the sub-store locations
-    await StoreSettings.updateFields({ subStoreLocations: locations });
-    
-    // Get updated settings to return
-    const updatedSettings = await StoreSettings.getSettings();
-
-    res.json({
-      success: true,
-      message: "Sub-store locations updated successfully",
-      data: updatedSettings.sub_store_locations || [],
-    });
-  } catch (error) {
-    console.error("Error bulk updating sub-store locations:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message || "Failed to update sub-store locations",
-    });
-  }
-};
+  const settings = await getOrCreateSettings();
+  await settings.update({ subStoreLocations: locations });
+  sendSuccess(res, { message: "Sub-store locations updated successfully", data: settings.subStoreLocations });
+});

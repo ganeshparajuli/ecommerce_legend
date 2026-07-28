@@ -1,230 +1,126 @@
-const User = require("../model/userModel");
-const bcrypt = require("bcrypt");
+const { User } = require("../models");
 const authToken = require("../middlewares/authToken");
-// const upload = require("../utils/Upload");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// register user
-exports.register = async (req, res) => {
-  try {
-    const { name, email, password, phone } = req.body;
-    // check if user already exists
-    const user = await User.findByEmail(email);
-    if (user) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    // Get image path from request
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
-    // create new user
-    const newUser = new User(name, email, password, "user", image, phone);
-    await newUser.save();
-    return authToken(newUser, 201, res, "User created successfully");
-  } catch (error) {
-    console.error("Error registering user: ", error);
-    return res.status(500).json({ message: "Internal server error" });
+exports.register = asyncHandler(async (req, res) => {
+  const { name, email, password, phone } = req.body;
+  requireFields(req.body, ["name", "email", "password"]);
+
+  const existing = await User.findOne({ where: { email } });
+  if (existing) throw new ApiError(400, "User already exists");
+
+  const image = req.file ? `uploads/${req.file.filename}` : null;
+  const user = await User.create({ name, email, password, role: "user", image, phone });
+  return authToken(user, 201, res, "User created successfully");
+});
+
+exports.addUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+  requireFields(req.body, ["name", "email", "password", "role"]);
+
+  const existing = await User.findOne({ where: { email } });
+  if (existing) throw new ApiError(400, "User already exists");
+
+  const image = req.file ? `uploads/${req.file.filename}` : null;
+  const user = await User.create({ name, email, password, role, image });
+  return authToken(user, 201, res, "User created successfully");
+});
+
+exports.login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  requireFields(req.body, ["email", "password"]);
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) throw new ApiError(400, "Invalid credentials");
+
+  const validPassword = await user.validatePassword(password);
+  if (!validPassword) throw new ApiError(400, "Invalid credentials");
+
+  if (!user.active) {
+    throw new ApiError(401, "Account has been deactivated. Please contact support.");
   }
-};
 
-// add user
-exports.addUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-    // check if user already exists
-    const user = await User.findByEmail(email);
-    if (user) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    // Get image path from request
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
-    // create new user
-    const newUser = new User(name, email, password, role, image);
-    await newUser.save();
-    return authToken(newUser, 201, res, "User created successfully");
-  } catch (error) {
-    console.error("Error registering user: ", error);
-    return res.status(500).json({ message: "Internal server error" });
+  return authToken(user, 200, res, "Login successful");
+});
+
+exports.profile = asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.params.id);
+  if (!user) throw new ApiError(404, "User not found");
+  sendSuccess(res, { message: "User fetched successfully", data: user.toSafeJSON() });
+});
+
+exports.getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.findAll({ order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { message: "Users fetched successfully", data: users.map((u) => u.toSafeJSON()) });
+});
+
+exports.updateImage = asyncHandler(async (req, res) => {
+  if (!req.file) throw new ApiError(400, "No image provided");
+  const user = await User.findByPk(req.params.id);
+  if (!user) throw new ApiError(404, "User not found");
+  await user.update({ image: `uploads/${req.file.filename}` });
+  sendSuccess(res, { message: "Image updated successfully", data: user.toSafeJSON() });
+});
+
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.params.id);
+  if (!user) throw new ApiError(404, "User not found");
+  if (!req.body || Object.keys(req.body).length === 0) {
+    throw new ApiError(400, "No fields provided to update");
   }
-};
 
-// login user
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required",
-      });
-    }
-    
-    // check if user exists
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-    
-    // verify password
-    const validPassword = await User.validatePassword(password, user.password);
-    if (!validPassword) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-    
-    // CHECK: Verify if user account is active before issuing token
-    if (user.active !== 1) {
-      return res.status(401).json({ 
-        success: false,
-        message: "Account has been deactivated. Please contact support." 
-      });
-    }
-    
-    return authToken(user, 200, res, "Login successful");
-  } catch (error) {
-    console.error("Error logging in user: ", error);
-    return res.status(500).json({ message: "Internal server error" });
+  const isSelf = req.user.id === user.id;
+  const isStaff = ["admin", "sub-admin", "sales"].includes(req.user.role);
+  if (!isSelf && !isStaff) {
+    throw new ApiError(403, "You are not allowed to update this user");
   }
-};
 
-// get user profile
-exports.profile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    return res
-      .status(200)
-      .json({ success: true, messaage: "User Fetched Successful", user });
-  } catch (error) {
-    console.error("Error getting user profile: ", error);
-    return res.status(500).json({ message: "Internal server error" });
+  // Only staff roles may change account status or role - a plain user
+  // must never be able to grant themselves (or anyone else) elevated access.
+  const allowedFields = ["name", "phone", "address"];
+  if (isStaff) allowedFields.push("active", "role");
+
+  const updates = {};
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) updates[field] = req.body[field];
   }
-};
-
-// get all user
-exports.getAllUsers = async (req, res, next) => {
-  try {
-    const users = await User.findAll();
-    res.status(200).json({ message: "Users fetched successfully", users });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to retrieve users" });
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "No permitted fields provided to update");
   }
-};
 
-// update user image
-exports.updateImage = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
-    const result = await User.updateImage(id, imagePath);
-    if (result) {
-      return res
-        .status(200)
-        .json({ message: "Image updated successfully", updatedUser: result });
-    } else {
-      return res.status(400).json({ message: "Image not updated" });
-    }
-  } catch (error) {
-    console.error("Error updating image: ", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
+  await user.update(updates);
+  sendSuccess(res, { message: "User updated successfully", data: user.toSafeJSON() });
+});
 
-// update user profile
-exports.updateProfile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const fields = req.body;
+exports.deleteUser = asyncHandler(async (req, res) => {
+  const deleted = await User.destroy({ where: { id: req.params.id } });
+  if (!deleted) throw new ApiError(404, "User not found");
+  sendSuccess(res, { message: "User deleted successfully" });
+});
 
-    // Check if any fields are present
-    if (!fields || Object.keys(fields).length === 0) {
-      return res.status(400).json({ message: "No fields provided to update" });
-    }
+exports.changePassword = asyncHandler(async (req, res) => {
+  const { id, oldPassword, newPassword } = req.body;
+  requireFields(req.body, ["id", "oldPassword", "newPassword"]);
 
-    const user = await User.updateUser(id, fields);
-    if (user.affectedRows > 0) {
-      return res.status(200).json({ message: "User updated successsfully" });
-    } else {
-      return res.status(400).json({ message: "User not updated" });
-    }
-  } catch (error) {
-    console.error("Error updating user profile: ", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
+  const user = await User.findByPk(id);
+  if (!user) throw new ApiError(404, "User not found");
 
-// Delete user
-exports.deleteUser = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const result = await User.deleteUser(id);
-    if (result.affectedRows > 0) {
-      res.status(200).json({ message: "User deleted successfully" });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    res.status(500).json({ message: "Failed to delete user" });
-  }
-};
+  const isMatch = await user.validatePassword(oldPassword);
+  if (!isMatch) throw new ApiError(401, "Invalid old password");
 
-// change password
-exports.changePassword = async (req, res, next) => {
-  try {
-    const { id, oldPassword, newPassword } = req.body;
-    const user = await User.findById(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+  await user.update({ password: newPassword });
+  sendSuccess(res, { message: "Password updated successfully" });
+});
 
-    // Use validatePassword method to check if old password matches
-    const isMatch = await User.validatePassword(oldPassword, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid old password" });
-    }
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { id, newPassword } = req.body;
+  requireFields(req.body, ["id", "newPassword"]);
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const user = await User.findByPk(id);
+  if (!user) throw new ApiError(404, "User not found");
 
-    // Update user password
-    const result = await User.updatePassword(id, hashedPassword);
-    if (result.affectedRows > 0) {
-      res.status(200).json({ message: "Password updated successfully" });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({ message: "Failed to change password" });
-  }
-};
-
-// reset password
-exports.resetPassword = async (req, res, next) => {
-  try {
-    const { id, newPassword } = req.body;
-    const user = await User.findById(id);
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    // Update user password
-    const result = await User.resetPassword(id, hashedPassword);
-    if (result.affectedRows > 0) {
-      res.status(200).json({ message: "Password reset successfully" });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    console.error("Error resetting password:", error);
-    res.status(500).json({ message: "Failed to reset password" });
-  }
-};
+  await user.update({ password: newPassword });
+  sendSuccess(res, { message: "Password reset successfully" });
+});

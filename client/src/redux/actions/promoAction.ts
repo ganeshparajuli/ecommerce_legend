@@ -90,7 +90,7 @@ export const createPromoCode = (promoCodeData: PromoCodeFormData) => async (disp
 
     dispatch({
       type: CREATE_PROMOCODE_SUCCESS,
-      payload: data.data,
+      payload: data,
     });
 
     return "success";

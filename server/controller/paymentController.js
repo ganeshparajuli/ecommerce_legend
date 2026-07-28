@@ -1,45 +1,29 @@
-const Payment = require("../model/paymentModel");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-exports.createCustomer = async (req, res) => {
-  try {
-    const { email, name } = req.body;
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return require("stripe")(process.env.STRIPE_SECRET_KEY);
+}
 
-    // Create a customer in Stripe
-    const customer = await Payment.create({
-      email,
-      name,
-    });
+exports.createCustomer = asyncHandler(async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) throw new ApiError(501, "Card payments are not configured on this server");
 
-    res.status(200).json({ success: true, customerId: customer.id });
-  } catch (error) {
-    console.error("Error creating customer:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
+  requireFields(req.body, ["email"]);
+  const customer = await stripe.customers.create({ email: req.body.email, name: req.body.name });
+  sendSuccess(res, { data: { customerId: customer.id } });
+});
 
-exports.addPaymentMethod = async (req, res) => {
-  try {
-    const { customerId, paymentMethodId, userId } = req.body;
+exports.addPaymentMethod = asyncHandler(async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) throw new ApiError(501, "Card payments are not configured on this server");
 
-    // Attach the payment method to the customer
-    await stripe.paymentMethods.attach(paymentMethodId, {
-      customer: customerId,
-    });
+  const { customerId, paymentMethodId } = req.body;
+  requireFields(req.body, ["customerId", "paymentMethodId"]);
 
-    // Set as default payment method
-    await stripe.customers.update(customerId, {
-      invoice_settings: {
-        default_payment_method: paymentMethodId,
-      },
-    });
-
-    // Save in database
-    await Payment.savePaymentInfo(userId, customerId, paymentMethodId);
-
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Error adding payment method:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
+  await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
+  await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: paymentMethodId } });
+  sendSuccess(res, { message: "Payment method added" });
+});

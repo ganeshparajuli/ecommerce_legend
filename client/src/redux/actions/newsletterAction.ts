@@ -61,15 +61,15 @@ export const getNewsletterDetails = (id: string) => async (dispatch: Dispatch<An
   try {
     dispatch({ type: GetNewsletterDetails.Request });
     const { data } = await api.get(`newsletters/${id}`);
-    
-    if (data.success === false || !data.newsletter) {
+
+    if (data.success === false || !data.data) {
       throw new Error(data.message || "Newsletter not found");
     }
-    
+
     // FIXED: Deep clone the newsletter data before dispatching
     dispatch({
       type: GetNewsletterDetails.Success,
-      payload: safeClone(data.newsletter),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({
@@ -84,15 +84,15 @@ export const createNewsletter = (newsletter: Newsletter) => async (dispatch: Dis
   try {
     dispatch({ type: CreateNewsletter.Request });
     const { data } = await api.post("newsletters", newsletter);
-    
-    if (data.success === false || !data.newsletter) {
+
+    if (data.success === false || !data.data) {
       throw new Error(data.message || "Failed to create newsletter");
     }
-    
+
     // FIXED: Deep clone the newsletter data before dispatching
     dispatch({
       type: CreateNewsletter.Success,
-      payload: safeClone(data.newsletter),
+      payload: safeClone(data.data),
     });
   } catch (error) {
     dispatch({

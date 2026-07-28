@@ -183,7 +183,7 @@ export const promoCodesReducer: Reducer<PromoCodesState> = (
       return {
         loading: false,
         promoCodes: action.payload.data || [],
-        count: action.payload.count,
+        count: action.payload.meta?.count,
         error: null
       };
     case GET_ALL_PROMOCODES_FAIL:
@@ -218,7 +218,7 @@ export const activePromoCodesReducer: Reducer<PromoCodesState> = (
       return {
         loading: false,
         promoCodes: action.payload.data || [],
-        count: action.payload.count,
+        count: action.payload.meta?.count,
         error: null
       };
     case GET_ACTIVE_PROMOCODES_FAIL:

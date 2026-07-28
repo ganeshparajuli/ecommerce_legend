@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getAllProducts } from "../redux/actions/productAction";
 import type { RootState } from "../redux/store";
 import { ProductImage } from "../utils/imageHelper";
+import type { Product } from "../redux/constants/productConstants";
 
 // Mock recent searches data - you can store this in localStorage or Redux
 const getRecentSearches = (): string[] => {
@@ -44,17 +45,6 @@ const clearRecentSearches = () => {
     // Silently fail if localStorage is not available
   }
 };
-
-// Define product type based on your product structure
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  brand?: string;
-  image?: string;
-  price?: number;
-  finalPrice?: number;
-}
 
 // Props interface
 interface SearchDialogProps {
@@ -349,11 +339,11 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
                                     <span>{product.brand}</span>
                                   </>
                                 )}
-                                {(product.finalPrice || product.price) && (
+                                {product.finalPrice && (
                                   <>
                                     <span>•</span>
                                     <span>
-                                      ${product.finalPrice || product.price}
+                                      ${product.finalPrice}
                                     </span>
                                   </>
                                 )}

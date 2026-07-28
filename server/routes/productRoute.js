@@ -10,56 +10,21 @@ const productUpload = upload.fields([
   { name: "newImages", maxCount: 10 }, // For updating products - new images
   { name: "image", maxCount: 10 }, // For backward compatibility
 ]);
+
 // ============================
 // PUBLIC ROUTES (No auth required)
-// ============================    
-
-// Basic product retrieval
+// Specific literal paths must come before "/:id" or Express will treat them as an id.
+// ============================
 router.get("/", productController.getAllProducts);
 router.get("/featured", productController.getFeaturedProducts);
 router.get("/search", productController.searchProducts);
-router.get("/:id", productController.getProductById);
 router.get("/sku/:sku", productController.getProductBySKU);
-
-// Note: These routes are commented out because the controller methods aren't implemented yet
-// But you can uncomment them when you add these methods to your controller
-// router.get("/category/:category", productController.getProductsByCategory);
-// router.get("/color/:color", productController.getProductsByColor);
-// router.get("/size/:size", productController.getProductsBySize);
-// router.get("/price-range", productController.getProductsByPriceRange);
+router.get("/category/:categoryId", productController.getProductsByCategory);
 
 // ============================
-// PROTECTED ROUTES (Admin only)
+// PROTECTED ROUTES (Admin only) - also placed before "/:id"
 // ============================
-
-// Create new product
-router.post(
-  "/",
-  isAuthenticated,
-  authorizeRoles("admin"),
-  productUpload,
-  productController.createProduct
-);
-
-// Update entire product
-router.put(
-  "/:id",
-  isAuthenticated,
-  authorizeRoles("admin"),
-  productUpload,
-  productController.updateProduct
-);
-
-// Delete product
-router.delete(
-  "/:id",
-  isAuthenticated,
-  authorizeRoles("admin"),
-  productController.deleteProduct
-);
-
-// NEW: Routes for soft delete functionality
-router.get('/deleted', isAuthenticated, authorizeRoles("admin"), productController.getDeletedProducts);
+router.get("/deleted", isAuthenticated, authorizeRoles("admin"), productController.getDeletedProducts);
 router.post(
   "/bulk-delete",
   isAuthenticated,
@@ -73,7 +38,40 @@ router.post(
   productController.bulkRestoreProducts
 );
 
-// Partial updates (PATCH routes)
+router.post(
+  "/",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productUpload,
+  productController.createProduct
+);
+
+// Generic "/:id" routes - must come after every literal path above.
+router.get("/:id", productController.getProductById);
+router.get("/:id/dependencies", isAuthenticated, authorizeRoles("admin"), productController.checkProductDependencies);
+
+router.put(
+  "/:id",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productUpload,
+  productController.updateProduct
+);
+
+router.delete(
+  "/:id",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productController.deleteProduct
+);
+
+router.post(
+  "/:id/restore",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productController.restoreProduct
+);
+
 router.patch(
   "/:id/stock",
   isAuthenticated,
@@ -87,15 +85,5 @@ router.patch(
   authorizeRoles("admin"),
   productController.updateProductRating
 );
-
-// Note: This route is commented out because updateProductImage isn't in the controller
-// You can implement it if needed for updating only images
-// router.patch(
-//   "/:id/image",
-//   isAuthenticated,
-//   authorizeRoles("admin"),
-//   upload.array("images", 10),
-//   productController.updateProductImage
-// );
 
 module.exports = router;

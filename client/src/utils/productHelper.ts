@@ -2,10 +2,12 @@
 import type { Product } from "../redux/constants/productConstants";
 
 /**
- * Parse product images from JSON string to array
+ * Parse product images into a plain string[], accepting the new array-of-URLs shape
+ * as well as the legacy JSON-string-of-paths shape.
  */
-export const parseProductImages = (imageData: string | null): string[] => {
+export const parseProductImages = (imageData: string | string[] | null): string[] => {
   if (!imageData) return [];
+  if (Array.isArray(imageData)) return imageData;
   try {
     const parsed = JSON.parse(imageData);
     return Array.isArray(parsed) ? parsed : [];
@@ -108,68 +110,6 @@ export const getStockStatus = (
   }
 };
 
-/**
- * Prepare product data for form submission
- */
-export const prepareProductFormData = (
-  productData: Partial<Product>,
-  imageFiles?: File[]
-): FormData => {
-  const formData = new FormData();
-
-  // Add basic fields
-  Object.entries(productData).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && key !== "images") {
-      // JSON stringify array/object fields
-      if (key === "keyFeatures" || key === "specifications" || key === "tags") {
-        formData.append(key, JSON.stringify(value));
-      } else {
-        formData.append(key, String(value));
-      }
-    }
-  });
-
-  // Add image files
-  if (imageFiles && imageFiles.length > 0) {
-    imageFiles.forEach((file) => formData.append("images", file));
-  }
-
-  return formData;
-};
-
-/**
- * Validate product data before submission
- */
-export const validateProductData = (
-  productData: Partial<Product>
-): {
-  isValid: boolean;
-  errors: Record<string, string>;
-} => {
-  const errors: Record<string, string> = {};
-
-  if (!productData.name || productData.name.trim() === "") {
-    errors.name = "Product name is required";
-  }
-
-  if (!productData.finalPrice && !productData.actualPrice) {
-    errors.price = "Product price is required";
-  }
-
-  const price = productData.finalPrice || productData.actualPrice || 0;
-  if (price <= 0) {
-    errors.price = "Price must be greater than 0";
-  }
-
-  if (productData.quantity !== undefined && productData.quantity < 0) {
-    errors.quantity = "Quantity cannot be negative";
-  }
-
-  return {
-    isValid: Object.keys(errors).length === 0,
-    errors,
-  };
-};
 
 /**
  * Sort products by different criteria

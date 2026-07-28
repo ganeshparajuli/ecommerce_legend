@@ -87,7 +87,7 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (
         ...state,
         loading: false,
         success: true,
-        brands: [action.payload.brand, ...state.brands],
+        brands: [action.payload.data, ...state.brands],
         error: null,
       };
 
@@ -121,7 +121,7 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (
         loading: false,
         isUpdated: true,
         brands: state.brands.map((brand) =>
-          brand.id === action.payload.brand.id ? action.payload.brand : brand
+          brand.id === action.payload.data.id ? action.payload.data : brand
         ),
         error: null,
       };
@@ -156,7 +156,7 @@ export const brandReducer: Reducer<BrandState, AnyAction> = (
         imageUploading: false,
         isUpdated: true,
         brands: state.brands.map((brand) =>
-          brand.id === action.payload.brand.id ? action.payload.brand : brand
+          brand.id === action.payload.data.id ? action.payload.data : brand
         ),
         brand:
           state.brand?.id === action.payload.brand.id

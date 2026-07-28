@@ -1,337 +1,96 @@
-const Brand = require("../model/brandModel");
+const { Op } = require("sequelize");
+const { Brand, Category } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// Create a new brand
-exports.createBrand = async (req, res) => {
-  try {
-    const { name } = req.body;
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
-    // Validate input
-    if (!name || typeof name !== "string" || name.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        error: "Brand name is required and must be a non-empty string",
-      });
-    }
+exports.createBrand = asyncHandler(async (req, res) => {
+  requireFields(req.body, ["name"]);
+  const name = req.body.name.trim();
+  const brand = await Brand.create({
+    name,
+    slug: slugify(name),
+    image: req.file ? `uploads/${req.file.filename}` : null,
+  });
+  sendSuccess(res, { status: 201, message: "Brand created successfully", data: brand });
+});
 
-    // Prepare brand data
-    const brandData = {
-      name: name.trim(),
-      image: req.file ? req.file.filename : null, // Use filename from upload
-    };
+exports.getAllBrands = asyncHandler(async (req, res) => {
+  const brands = await Brand.findAll({ order: [["name", "ASC"]] });
+  sendSuccess(res, { data: brands });
+});
 
-    // Create brand
-    const brand = await Brand.create(brandData);
+exports.getBrandsWithImages = asyncHandler(async (req, res) => {
+  const brands = await Brand.findAll({ where: { image: { [Op.ne]: null } }, order: [["name", "ASC"]] });
+  sendSuccess(res, { data: brands });
+});
 
-    res.status(201).json({
-      success: true,
-      message: "Brand created successfully",
-      brand: brand,
-    });
-  } catch (error) {
-    console.error("Error creating brand:", error);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-    });
+exports.getBrandById = asyncHandler(async (req, res) => {
+  const brand = await Brand.findByPk(req.params.id);
+  if (!brand) throw new ApiError(404, "Brand not found");
+  sendSuccess(res, { data: brand });
+});
+
+exports.getBrandBySlug = asyncHandler(async (req, res) => {
+  const brand = await Brand.findOne({ where: { slug: req.params.slug } });
+  if (!brand) throw new ApiError(404, "Brand not found");
+  sendSuccess(res, { data: brand });
+});
+
+exports.updateBrand = asyncHandler(async (req, res) => {
+  const brand = await Brand.findByPk(req.params.id);
+  if (!brand) throw new ApiError(404, "Brand not found");
+
+  const updates = {};
+  if (req.body.name) {
+    updates.name = req.body.name.trim();
+    updates.slug = slugify(updates.name);
   }
-};
+  if (req.file) updates.image = `uploads/${req.file.filename}`;
+  if (Object.keys(updates).length === 0) throw new ApiError(400, "No valid fields to update");
 
-// Get all brands
-exports.getAllBrands = async (req, res) => {
-  try {
-    const brands = await Brand.findAll();
-    res.json({
-      success: true,
-      brands: brands,
-    });
-  } catch (error) {
-    console.error("Error fetching brands:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brands",
-    });
-  }
-};
+  await brand.update(updates);
+  sendSuccess(res, { message: "Brand updated successfully", data: brand });
+});
 
-// Get brand by ID
-exports.getBrandById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const brand = await Brand.findById(id);
+exports.updateBrandImage = asyncHandler(async (req, res) => {
+  const brand = await Brand.findByPk(req.params.id);
+  if (!brand) throw new ApiError(404, "Brand not found");
+  if (!req.file) throw new ApiError(400, "No image file provided");
+  await brand.update({ image: `uploads/${req.file.filename}` });
+  sendSuccess(res, { message: "Brand image updated successfully", data: brand });
+});
 
-    if (!brand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
+exports.removeBrandImage = asyncHandler(async (req, res) => {
+  const brand = await Brand.findByPk(req.params.id);
+  if (!brand) throw new ApiError(404, "Brand not found");
+  await brand.update({ image: null });
+  sendSuccess(res, { message: "Brand image removed successfully", data: brand });
+});
 
-    res.json({
-      success: true,
-      brand: brand,
-    });
-  } catch (error) {
-    console.error("Error fetching brand:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brand",
-    });
-  }
-};
+exports.deleteBrand = asyncHandler(async (req, res) => {
+  const deleted = await Brand.destroy({ where: { id: req.params.id } });
+  if (!deleted) throw new ApiError(404, "Brand not found");
+  sendSuccess(res, { message: "Brand deleted successfully" });
+});
 
-// Get brand by slug
-exports.getBrandBySlug = async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const brand = await Brand.findBySlug(slug);
+exports.getBrandWithCategories = asyncHandler(async (req, res) => {
+  const brand = await Brand.findByPk(req.params.id, { include: [{ model: Category, as: "categories" }] });
+  if (!brand) throw new ApiError(404, "Brand not found");
+  sendSuccess(res, { data: brand });
+});
 
-    if (!brand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      brand: brand,
-    });
-  } catch (error) {
-    console.error("Error fetching brand by slug:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brand",
-    });
-  }
-};
-
-// Update brand
-exports.updateBrand = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name } = req.body;
-
-    // Check if brand exists
-    const existingBrand = await Brand.findById(id);
-    if (!existingBrand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    // Prepare update data
-    const updateData = {};
-
-    // Update name if provided
-    if (name && typeof name === "string" && name.trim() !== "") {
-      updateData.name = name.trim();
-    }
-
-    // Update image if uploaded
-    if (req.file) {
-      updateData.image = req.file.filename;
-    }
-
-    // Check if there's anything to update
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "No valid fields to update",
-      });
-    }
-
-    // Update brand
-    await Brand.updateBrand(id, updateData);
-
-    // Get updated brand
-    const updatedBrand = await Brand.findById(id);
-
-    res.json({
-      success: true,
-      message: "Brand updated successfully",
-      brand: updatedBrand,
-    });
-  } catch (error) {
-    console.error("Error updating brand:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update brand",
-    });
-  }
-};
-
-// Update only brand image
-exports.updateBrandImage = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Check if brand exists
-    const existingBrand = await Brand.findById(id);
-    if (!existingBrand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    // Check if image was uploaded
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "No image file provided",
-      });
-    }
-
-    // Update only image
-    await Brand.updateBrandImage(id, req.file.filename);
-
-    // Get updated brand
-    const updatedBrand = await Brand.findById(id);
-
-    res.json({
-      success: true,
-      message: "Brand image updated successfully",
-      brand: updatedBrand,
-    });
-  } catch (error) {
-    console.error("Error updating brand image:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to update brand image",
-    });
-  }
-};
-
-// Remove brand image
-exports.removeBrandImage = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Check if brand exists
-    const existingBrand = await Brand.findById(id);
-    if (!existingBrand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    // Remove image
-    await Brand.removeBrandImage(id);
-
-    // Get updated brand
-    const updatedBrand = await Brand.findById(id);
-
-    res.json({
-      success: true,
-      message: "Brand image removed successfully",
-      brand: updatedBrand,
-    });
-  } catch (error) {
-    console.error("Error removing brand image:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to remove brand image",
-    });
-  }
-};
-
-// Delete brand
-exports.deleteBrand = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Check if brand exists
-    const existingBrand = await Brand.findById(id);
-    if (!existingBrand) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    // Delete brand
-    await Brand.deleteBrand(id);
-
-    res.json({
-      success: true,
-      message: "Brand deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting brand:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to delete brand",
-    });
-  }
-};
-
-// Get brand with its categories
-exports.getBrandWithCategories = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const brandWithCategories = await Brand.getBrandWithCategories(id);
-
-    if (!brandWithCategories) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      brand: brandWithCategories,
-    });
-  } catch (error) {
-    console.error("Error fetching brand with categories:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brand with categories",
-    });
-  }
-};
-
-// Get brand with its categories by slug
-exports.getBrandWithCategoriesBySlug = async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const brandWithCategories = await Brand.getBrandWithCategoriesBySlug(slug);
-
-    if (!brandWithCategories) {
-      return res.status(404).json({
-        success: false,
-        error: "Brand not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      brand: brandWithCategories,
-    });
-  } catch (error) {
-    console.error("Error fetching brand with categories by slug:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brand with categories",
-    });
-  }
-};
-
-// Get brands with images only
-exports.getBrandsWithImages = async (req, res) => {
-  try {
-    const brands = await Brand.findBrandsWithImages();
-    res.json({
-      success: true,
-      brands: brands,
-    });
-  } catch (error) {
-    console.error("Error fetching brands with images:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch brands with images",
-    });
-  }
-};
+exports.getBrandWithCategoriesBySlug = asyncHandler(async (req, res) => {
+  const brand = await Brand.findOne({ where: { slug: req.params.slug }, include: [{ model: Category, as: "categories" }] });
+  if (!brand) throw new ApiError(404, "Brand not found");
+  sendSuccess(res, { data: brand });
+});

@@ -80,13 +80,4 @@ router.delete(
   splashController.deleteSplash
 );
 
-// ============= DEBUG ROUTES =============
-// Debug route to check table structure (admin only)
-router.get(
-  "/debug/table-structure",
-  isAuthenticated,
-  authorizeRoles("admin"),
-  splashController.getTableStructure
-);
-
 module.exports = router;

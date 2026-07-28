@@ -22,7 +22,7 @@ import {
   getStoreLocations,
   clearStoreLocationsError,
 } from "../../redux/actions/settingsAction";
-import type { RootState } from "../../redux/types";
+import type { RootState } from "../../redux/store";
 import type { CartItem } from "../../redux/constants/cartConstants";
 import type { StoreLocation } from "../../redux/constants/settingsConstants";
 import { Button } from "../../components/ui/button";
@@ -99,20 +99,20 @@ export const Cart = () => {
   const estimatedShipping = 200; // Show estimated shipping
   const estimatedTotal = subtotal + estimatedShipping;
 
-  const handleRemoveFromCart = (id: string) => {
-    dispatch(removeFromCart(id));
+  const handleRemoveFromCart = (variantId: string) => {
+    dispatch(removeFromCart(variantId));
     toast.success("Item removed from cart.");
   };
 
   const handleQuantityChange = (
-    id: string,
+    variantId: string,
     newQuantity: number,
     countInStock: number
   ) => {
     if (newQuantity < 1) newQuantity = 1;
     if (newQuantity > countInStock) newQuantity = countInStock;
 
-    dispatch(updateCartItem(id, newQuantity));
+    dispatch(updateCartItem(variantId, newQuantity));
     toast.success("Quantity updated.");
   };
 
@@ -146,38 +146,7 @@ export const Cart = () => {
     navigate("/checkout");
   };
 
-  const getEstimatedItemPrice = (item: CartItem): number => {
-    if (typeof item.price === "number" && item.price > 0) {
-      return item.price;
-    }
-
-    if (typeof item.finalPrice === "number" && item.finalPrice > 0) {
-      return item.finalPrice;
-    }
-
-    if (item.product) {
-      if (
-        typeof item.product.finalPrice === "number" &&
-        item.product.finalPrice > 0
-      ) {
-        return item.product.finalPrice;
-      }
-
-      if (typeof item.product.price === "number" && item.product.price > 0) {
-        return item.product.price;
-      }
-    }
-
-    if (total && cartItems) {
-      const totalQuantity = cartItems.reduce((sum, i) => sum + i.quantity, 0);
-      if (totalQuantity === 0) {
-        return total / cartItems.length;
-      }
-      return total / totalQuantity;
-    }
-
-    return 0;
-  };
+  const getEstimatedItemPrice = (item: CartItem): number => item.price || 0;
 
   // Display loading state
   if (loading || isLoading) {
@@ -332,7 +301,7 @@ export const Cart = () => {
                 <div className="divide-y divide-gray-200">
                   {itemsWithPrices.map((item) => (
                     <motion.div
-                      key={item.id || item.product_id}
+                      key={item.id}
                       variants={{
                         hidden: { opacity: 0, y: 20 },
                         visible: { opacity: 1, y: 0 },
@@ -342,20 +311,27 @@ export const Cart = () => {
                       <div className="flex items-center">
                         <div className="rounded-xl overflow-hidden shadow-md transform hover:scale-105 transition-all duration-300">
                           <ProductImage
-                            src={item.image || item.product?.image}
-                            alt={item.name || item.product?.name || "Product"}
+                            src={item.product?.image || undefined}
+                            alt={item.product?.name || "Product"}
                             className="w-16 h-16 object-cover"
                           />
                         </div>
                         <div className="ml-4 flex-1">
                           <div className="flex justify-between">
-                            <h3 className="text-lg font-semibold text-black">
-                              {item.name || item.product?.name || "Product"}
-                            </h3>
+                            <div>
+                              <h3 className="text-lg font-semibold text-black">
+                                {item.product?.name || "Product"}
+                              </h3>
+                              {item.variant?.attributes && Object.keys(item.variant.attributes).length > 0 && (
+                                <p className="text-xs text-gray-500">
+                                  {Object.entries(item.variant.attributes)
+                                    .map(([key, value]) => `${key}: ${value}`)
+                                    .join(", ")}
+                                </p>
+                              )}
+                            </div>
                             <button
-                              onClick={() =>
-                                handleRemoveFromCart(item.product_id as string)
-                              }
+                              onClick={() => handleRemoveFromCart(item.productVariantId)}
                               className="text-gray-400 hover:text-red-500 transition-all duration-300 transform hover:scale-110 p-1 rounded-full hover:bg-red-50"
                             >
                               <Trash2 className="w-5 h-5" />
@@ -371,9 +347,9 @@ export const Cart = () => {
                                 className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition-all duration-300 transform hover:scale-105"
                                 onClick={() =>
                                   handleQuantityChange(
-                                    item.product_id as string,
+                                    item.productVariantId,
                                     item.quantity - 1,
-                                    item.countInStock || 10
+                                    item.variant?.quantity || 10
                                   )
                                 }
                                 disabled={item.quantity <= 1}
@@ -387,20 +363,18 @@ export const Cart = () => {
                                 className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition-all duration-300 transform hover:scale-105"
                                 onClick={() =>
                                   handleQuantityChange(
-                                    item.product_id as string,
+                                    item.productVariantId,
                                     item.quantity + 1,
-                                    item.countInStock || 10
+                                    item.variant?.quantity || 10
                                   )
                                 }
-                                disabled={
-                                  item.quantity >= (item.countInStock || 10)
-                                }
+                                disabled={item.quantity >= (item.variant?.quantity || 10)}
                               >
                                 <Plus className="w-4 h-4" />
                               </button>
                             </div>
                             <span className="ml-3 text-sm text-gray-600 bg-gray-100 backdrop-blur-sm px-2 py-1 rounded-full">
-                              {item.countInStock || 10} available
+                              {item.variant?.quantity ?? 10} available
                             </span>
                           </div>
                         </div>

@@ -1,472 +1,210 @@
-const Order = require("../model/orderModel");
-const Product = require("../model/productModel");
+const { Order, OrderItem, ProductVariant, Product, ProductImage, PromoCode, sequelize } = require("../models");
+const asyncHandler = require("../utils/asyncHandler");
+const { sendSuccess, ApiError } = require("../utils/apiResponse");
+const requireFields = require("../utils/validateRequest");
 
-// Create a new order
-exports.createOrder = async (req, res) => {
-  try {
-    const {
-      user_id,
-      total_amount,
-      shipping_address,
-      orderItems,
-      payment_method,
-      promo_code,
-      discount_amount,
-    } = req.body;
+const STAFF_ROLES = ["admin", "sub-admin", "sales", "finance"];
+const VALID_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
 
-    // Rename orderItems to items for compatibility with existing code
-    const items = orderItems;
+const ORDER_INCLUDES = [
+  {
+    model: OrderItem,
+    as: "items",
+    include: [
+      { model: Product, as: "product", include: [{ model: ProductImage, as: "images", separate: true, limit: 1, order: [["sortOrder", "ASC"]] }] },
+      { model: ProductVariant, as: "variant" },
+    ],
+  },
+];
 
-    // Use authenticated user's ID if no user_id is provided
-    const orderUserId = user_id || req.user.id;
+function canAccessOrder(user, order) {
+  return user.id === order.userId || STAFF_ROLES.includes(user.role);
+}
 
-    // Validate input
-    if (
-      !orderUserId ||
-      !total_amount ||
-      !shipping_address ||
-      !orderItems ||
-      orderItems.length === 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields",
+exports.createOrder = asyncHandler(async (req, res) => {
+  const { shippingAddress, orderItems, paymentMethod, promoCode } = req.body;
+  requireFields(req.body, ["shippingAddress"]);
+  if (!Array.isArray(orderItems) || !orderItems.length) {
+    throw new ApiError(400, "At least one order item is required");
+  }
+
+  const order = await sequelize.transaction(async (t) => {
+    let subtotal = 0;
+    const itemsToCreate = [];
+
+    for (const requested of orderItems) {
+      const { productVariantId, quantity } = requested;
+      if (!productVariantId || !quantity || quantity < 1) {
+        throw new ApiError(400, "Each order item needs a productVariantId and quantity >= 1");
+      }
+
+      // Row-lock the variant so concurrent orders can't oversell the same stock.
+      const variant = await ProductVariant.findByPk(productVariantId, { transaction: t, lock: t.LOCK.UPDATE });
+      if (!variant) throw new ApiError(404, `Product variant ${productVariantId} not found`);
+      if (variant.quantity < quantity) {
+        throw new ApiError(400, `Insufficient stock for variant ${productVariantId}: ${variant.quantity} available`);
+      }
+
+      await variant.update({ quantity: variant.quantity - quantity }, { transaction: t });
+
+      // Price is always computed server-side from the current variant price - never trust the client.
+      const price = variant.price;
+      subtotal += price * quantity;
+      itemsToCreate.push({
+        productId: variant.productId,
+        productVariantId: variant.id,
+        quantity,
+        price,
+        originalPrice: variant.compareAtPrice || price,
       });
     }
 
-    // Validate items - check if products exist and have enough stock
-    for (const item of items) {
-      const product = await Product.findById(item.product_id);
-
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product with ID ${item.product_id} not found`,
-        });
-      }
-
-      if (product.quantity < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Product ${product.name} has insufficient stock: ${product.quantity} available`,
-        });
+    // Promo code discount is recomputed and clamped server-side rather than trusting a client total.
+    let discountAmount = 0;
+    let appliedPromoCode = null;
+    if (promoCode) {
+      const promo = await PromoCode.findOne({ where: { code: promoCode }, transaction: t });
+      const now = new Date();
+      if (
+        promo &&
+        promo.isActive &&
+        now >= promo.validFrom &&
+        now <= promo.validUntil &&
+        subtotal >= promo.minPurchase
+      ) {
+        discountAmount = Math.min(promo.maxDiscountAmount, subtotal);
+        appliedPromoCode = promo.code;
       }
     }
 
-    // Create new order
-    const newOrder = new Order(
-      orderUserId,
-      total_amount,
-      shipping_address,
-      payment_method,
-      "pending",
-      new Date(),
-      promo_code || null,
-      discount_amount || 0
+    const newOrder = await Order.create(
+      {
+        userId: req.user.id,
+        totalAmount: Math.max(0, subtotal - discountAmount),
+        shippingAddress,
+        paymentMethod: paymentMethod || "cod",
+        status: "pending",
+        promoCode: appliedPromoCode,
+        discountAmount,
+      },
+      { transaction: t }
     );
 
-    // Save order
-    const orderId = await newOrder.save();
+    await OrderItem.bulkCreate(
+      itemsToCreate.map((item) => ({ ...item, orderId: newOrder.id })),
+      { transaction: t }
+    );
 
-    // Add order items
-    await Order.addOrderItems(orderId, items);
+    return newOrder;
+  });
 
-    return res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      order_id: orderId,
-    });
-  } catch (error) {
-    console.error("Error creating order: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+  const full = await Order.findByPk(order.id, { include: ORDER_INCLUDES });
+  sendSuccess(res, { status: 201, message: "Order created successfully", data: full });
+});
+
+exports.getOrderById = asyncHandler(async (req, res) => {
+  const order = await Order.findByPk(req.params.id, { include: ORDER_INCLUDES });
+  if (!order) throw new ApiError(404, "Order not found");
+  if (!canAccessOrder(req.user, order)) throw new ApiError(403, "Unauthorized to view this order");
+  sendSuccess(res, { data: order });
+});
+
+exports.getUserOrders = asyncHandler(async (req, res) => {
+  const targetUserId = req.params.userId === "undefined" ? req.user.id : req.params.userId;
+  if (req.user.id !== targetUserId && !STAFF_ROLES.includes(req.user.role)) {
+    throw new ApiError(403, "Unauthorized to view these orders");
   }
-};
+  const orders = await Order.findAll({ where: { userId: targetUserId }, include: ORDER_INCLUDES, order: [["createdAt", "DESC"]] });
+  sendSuccess(res, { data: orders });
+});
 
-// Get order by ID
-exports.getOrderById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const order = await Order.findById(id);
+exports.getAllOrders = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const { rows, count } = await Order.findAndCountAll({
+    include: ORDER_INCLUDES,
+    order: [["createdAt", "DESC"]],
+    limit,
+    offset: (page - 1) * limit,
+  });
+  sendSuccess(res, { data: rows, meta: { pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } } });
+});
 
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
+exports.getOrdersByStatus = asyncHandler(async (req, res) => {
+  if (!VALID_STATUSES.includes(req.params.status)) throw new ApiError(400, "Invalid status");
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const { rows, count } = await Order.findAndCountAll({
+    where: { status: req.params.status },
+    include: ORDER_INCLUDES,
+    order: [["createdAt", "DESC"]],
+    limit,
+    offset: (page - 1) * limit,
+  });
+  sendSuccess(res, { data: rows, meta: { pagination: { total: count, page, limit, pages: Math.ceil(count / limit) } } });
+});
 
-    // Check if user is authorized to view this order
-    if (req.user.id !== order.user_id && !req.user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized to view this order",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      order,
-    });
-  } catch (error) {
-    console.error("Error getting order: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+async function restockOrder(order, t) {
+  const items = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
+  for (const item of items) {
+    await ProductVariant.increment("quantity", { by: item.quantity, where: { id: item.productVariantId }, transaction: t });
   }
-};
+}
 
-// Get user orders
-exports.getUserOrders = async (req, res) => {
-  try {
-    // Extract userId from params
-    const { userId } = req.params;
+exports.updateOrderStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!VALID_STATUSES.includes(status)) throw new ApiError(400, "Invalid status");
 
-    // If userId is undefined, use the authenticated user's ID
-    const targetUserId = userId === "undefined" ? req.user.id : userId;
+  await sequelize.transaction(async (t) => {
+    const order = await Order.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!order) throw new ApiError(404, "Order not found");
 
-    // If we still don't have a valid userId, return an error
-    if (!targetUserId) {
-      return res.status(400).json({
-        success: false,
-        message: "User ID is required",
-      });
+    if (status === "cancelled" && order.status !== "cancelled") {
+      await restockOrder(order, t);
     }
+    await order.update({ status }, { transaction: t });
+  });
 
-    // Check if user is authorized - skip this check if req.user is not available
-    if (req.user && req.user.id !== targetUserId && !req.user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized to view these orders",
-      });
-    }
+  sendSuccess(res, { message: "Order status updated successfully" });
+});
 
-    const orders = await Order.findByUserId(targetUserId);
-
-    return res.status(200).json({
-      success: true,
-      orders,
-    });
-  } catch (error) {
-    console.error("Error getting user orders: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-// Update order status
-exports.updateOrderStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    // Validate status
-    const validStatuses = [
-      "pending",
-      "processing",
-      "shipped",
-      "delivered",
-      "cancelled",
-    ];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    // Check if order exists
-    const order = await Order.findById(id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    // If trying to cancel, use cancelOrder method
-    if (status === "cancelled") {
-      await Order.cancelOrder(id);
-    } else {
-      await Order.updateStatus(id, status);
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating order status: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-exports.updateOrder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { total_amount, shipping_address, payment_method, status } = req.body;
-
-    // Check if order exists
-    const order = await Order.findById(id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    // Validate status if provided
-    if (status) {
-      const validStatuses = [
-        "pending",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-      ];
-
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid status",
-        });
-      }
-
-      // If trying to cancel, use cancelOrder method instead
-      if (status === "cancelled") {
-        await Order.cancelOrder(id);
-        return res.status(200).json({
-          success: true,
-          message: "Order cancelled successfully",
-        });
-      }
-    }
-
-    // Check permissions - admin can update any order
-    // Regular users can only update their own orders in certain statuses
-    if (!req.user.isAdmin && req.user.id !== order.user_id) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized to update this order",
-      });
-    }
-
-    // Regular users should only be able to update orders in pending status
-    if (!req.user.isAdmin && order.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only modify orders with 'pending' status",
-      });
-    }
-
-    // Create update data object
-    const updateData = {};
-    if (total_amount) updateData.total_amount = total_amount;
-    if (shipping_address) updateData.shipping_address = shipping_address;
-    if (payment_method) updateData.payment_method = payment_method;
-    if (status) updateData.status = status;
-
-    // Perform update
-    const updated = await Order.updateOrder(id, updateData);
-
-    if (!updated) {
-      return res.status(400).json({
-        success: false,
-        message: "No fields to update or update failed",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Order updated successfully",
-    });
-  } catch (error) {
-    console.error("Error updating order: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
-exports.updateOrder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      total_amount,
-      shipping_address,
-      payment_method,
-      status,
-      orderItems,
-    } = req.body;
-
-    // Rest of the validation code...
-
-    // Start a transaction for updating both order and items
-    const connection = await db.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      // Update order details
-      const updateData = {};
-      if (total_amount) updateData.total_amount = total_amount;
-      if (shipping_address) updateData.shipping_address = shipping_address;
-      if (payment_method) updateData.payment_method = payment_method;
-      if (status) updateData.status = status;
-
-      // Only update order details if there are fields to update
-      if (Object.keys(updateData).length > 0) {
-        const updated = await Order.updateOrder(id, updateData);
-        if (!updated) {
-          return res.status(400).json({
-            success: false,
-            message: "Order update failed",
-          });
-        }
-      }
-
-      // Update order items if provided
-      if (orderItems && orderItems.length > 0) {
-        await Order.updateOrderItems(id, orderItems);
-      }
-
-      await connection.commit();
-
-      return res.status(200).json({
-        success: true,
-        message: "Order updated successfully",
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error("Error updating order: ", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Internal server error",
-    });
-  }
-};
-
-// Cancel order
-exports.cancelOrder = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Check if order exists
-    const order = await Order.findById(id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    // Check if order can be cancelled
+exports.cancelOrder = asyncHandler(async (req, res) => {
+  await sequelize.transaction(async (t) => {
+    const order = await Order.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!order) throw new ApiError(404, "Order not found");
+    if (!canAccessOrder(req.user, order)) throw new ApiError(403, "Unauthorized to cancel this order");
     if (["shipped", "delivered", "cancelled"].includes(order.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot cancel order with status: ${order.status}`,
-      });
+      throw new ApiError(400, `Cannot cancel order with status: ${order.status}`);
     }
+    await restockOrder(order, t);
+    await order.update({ status: "cancelled" }, { transaction: t });
+  });
 
-    // Check user authorization
-    if (req.user.id !== order.user_id && !req.user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized to cancel this order",
-      });
-    }
+  sendSuccess(res, { message: "Order cancelled successfully" });
+});
 
-    await Order.cancelOrder(id);
+exports.updateOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findByPk(req.params.id);
+  if (!order) throw new ApiError(404, "Order not found");
 
-    return res.status(200).json({
-      success: true,
-      message: "Order cancelled successfully",
-    });
-  } catch (error) {
-    console.error("Error cancelling order: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+  const { shippingAddress, paymentMethod, status } = req.body;
+  if (status !== undefined && !VALID_STATUSES.includes(status)) throw new ApiError(400, "Invalid status");
+  if (!STAFF_ROLES.includes(req.user.role) && order.status !== "pending") {
+    throw new ApiError(400, "Can only modify orders with 'pending' status");
   }
-};
 
-// Get all orders (admin only)
-exports.getAllOrders = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-
-    const orders = await Order.findAll(limit, offset);
-    const total = await Order.countAll();
-
-    return res.status(200).json({
-      success: true,
-      orders,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
-      },
+  if (status === "cancelled") {
+    await sequelize.transaction(async (t) => {
+      await restockOrder(order, t);
+      await order.update({ status: "cancelled" }, { transaction: t });
     });
-  } catch (error) {
-    console.error("Error getting all orders: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return sendSuccess(res, { message: "Order cancelled successfully" });
   }
-};
 
-// Get orders by status (admin only)
-exports.getOrdersByStatus = async (req, res) => {
-  try {
-    const { status } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-
-    // Validate status
-    const validStatuses = [
-      "pending",
-      "processing",
-      "shipped",
-      "delivered",
-      "cancelled",
-    ];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status",
-      });
-    }
-
-    const orders = await Order.findByStatus(status, limit, offset);
-
-    return res.status(200).json({
-      success: true,
-      orders,
-    });
-  } catch (error) {
-    console.error("Error getting orders by status: ", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
+  const updates = {};
+  if (shippingAddress) updates.shippingAddress = shippingAddress;
+  if (paymentMethod) updates.paymentMethod = paymentMethod;
+  if (status) updates.status = status;
+  await order.update(updates);
+  sendSuccess(res, { message: "Order updated successfully" });
+});

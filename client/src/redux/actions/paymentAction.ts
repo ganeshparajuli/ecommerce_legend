@@ -12,7 +12,7 @@ import {
   } from "../constants/paymentConstants";
   import api from "../api";
   import { Dispatch } from "redux";
-  import { RootState } from "../types";
+  import type { RootState } from "../store";
 // Helper function to extract error message
 const getErrorMessage = (error: any): string => {
     return error.response?.data?.message || error.message || "An error occurred";

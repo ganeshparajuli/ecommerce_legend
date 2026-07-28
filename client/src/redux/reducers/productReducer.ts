@@ -14,9 +14,6 @@ import {
   RestoreProduct,
   BulkRestoreProducts,
   ProductsByCategory,
-  ProductsByColor,
-  ProductsByPriceRange,
-  UpdateProductImage,
   UpdateProductStock,
   UpdateProductRating,
   ClearProductErrors,
@@ -256,7 +253,6 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
 
     // Update Product - CRITICAL FIX
     case UpdateProduct.Request:
-    case UpdateProductImage.Request:
     case UpdateProductStock.Request:
     case UpdateProductRating.Request:
       return {
@@ -290,34 +286,6 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
         // Update single product state
         product: state.product?.id === updatedProduct.id 
           ? safeCloneProduct(updatedProduct)
-          : state.product ? safeCloneProduct(state.product) : null,
-        error: null,
-      };
-
-    case UpdateProductImage.Success:
-      const imageUpdateData = action.payload?.data;
-      if (!imageUpdateData) {
-        return {
-          ...state,
-          loading: false,
-          isUpdated: true,
-          error: null,
-        };
-      }
-      
-      return {
-        ...state,
-        loading: false,
-        isUpdated: true,
-        products: safeCloneProducts(
-          state.products.map((product) => 
-            product.id === imageUpdateData.id 
-              ? { ...product, image: imageUpdateData.image }
-              : product
-          )
-        ),
-        product: state.product?.id === imageUpdateData.id 
-          ? safeCloneProduct({ ...state.product, image: imageUpdateData.image })
           : state.product ? safeCloneProduct(state.product) : null,
         error: null,
       };
@@ -387,7 +355,6 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
       };
 
     case UpdateProduct.Fail:
-    case UpdateProductImage.Fail:
     case UpdateProductStock.Fail:
     case UpdateProductRating.Fail:
       return {
@@ -398,7 +365,6 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
       };
 
     case UpdateProduct.Reset:
-    case UpdateProductImage.Reset:
     case UpdateProductStock.Reset:
     case UpdateProductRating.Reset:
       return {
@@ -707,69 +673,10 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
         loading: false,
         searchResults: categoryProducts,
         filteredProductCount: categoryProducts.length,
-        filters: {
-          ...state.filters,
-          category: categoryProducts.length > 0 ? categoryProducts[0].category : undefined,
-        },
         error: null,
       };
 
     case ProductsByCategory.Fail:
-      return {
-        ...state,
-        loading: false,
-        error: action.payload,
-        searchResults: [], // Clear on failure
-      };
-
-    // Products By Color
-    case ProductsByColor.Request:
-      return {
-        ...state,
-        loading: true,
-        error: null,
-      };
-
-    case ProductsByColor.Success:
-      const colorProducts = safeCloneProducts(action.payload || []);
-      return {
-        ...state,
-        loading: false,
-        searchResults: colorProducts,
-        filteredProductCount: colorProducts.length,
-        filters: {
-          ...state.filters,
-          color: colorProducts.length > 0 ? colorProducts[0].color : undefined,
-        },
-        error: null,
-      };
-
-    case ProductsByColor.Fail:
-      return {
-        ...state,
-        loading: false,
-        error: action.payload,
-        searchResults: [], // Clear on failure
-      };
-
-    // Products By Price Range
-    case ProductsByPriceRange.Request:
-      return {
-        ...state,
-        loading: true,
-        error: null,
-      };
-
-    case ProductsByPriceRange.Success:
-      return {
-        ...state,
-        loading: false,
-        searchResults: safeCloneProducts(action.payload || []),
-        filteredProductCount: Array.isArray(action.payload) ? action.payload.length : 0,
-        error: null,
-      };
-
-    case ProductsByPriceRange.Fail:
       return {
         ...state,
         loading: false,

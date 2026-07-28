@@ -313,7 +313,7 @@ export const loadUser = () => async (dispatch: Dispatch<AnyAction>) => {
       console.log("User profile loaded:", data);
       
       // CRITICAL FIX: Deep clone the user data before dispatching
-      const clonedUser = safeClone(data.user);
+      const clonedUser = safeClone(data.data);
       dispatch({
         type: USER_DETAILS_SUCCESS,
         payload: clonedUser
@@ -367,13 +367,13 @@ function extractUserIdFromToken(token: string): string | null {
 export const getAllUsers = () => async (dispatch: Dispatch<AnyAction>, getState: () => any): Promise<any> => {
   try {
     const state = getState();
-    const users = state;
+    const users = state.user;
     // Prevent duplicate requests
-    if (users.loading || (users?.users && users.users.length > 0)) {
+    if (users?.loading || (users?.users && users.users.length > 0)) {
       console.log("🔄 Already loading users or users already fetched, skipping request");
       return {
         success: true,
-        data: users.users || []
+        data: users?.users || []
       };
     }
 
@@ -397,8 +397,8 @@ export const getAllUsers = () => async (dispatch: Dispatch<AnyAction>, getState:
     const response = await api.get("user", config);
     
     console.log("👥 Users API response:", response.data); // Debug log
-    
-    const parsedUsers = response.data.users || [];
+
+    const parsedUsers = response.data.data || [];
     // FIXED: Deep clone the users data before dispatching
     
     dispatch({ 
@@ -477,19 +477,26 @@ export const updateProfile = (userData: Partial<User>) => async (dispatch: Dispa
       };
     }
 
+    const userId = extractUserIdFromToken(token);
+    if (!userId) {
+      return {
+        success: false,
+        error: "Invalid token format"
+      };
+    }
+
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     };
     dispatch({ type: USER_UPDATE_PROFILE_REQUEST });
-    
+
     // This should update the current user's profile
-    const response = await api.put(`user/profile`, userData, config);
-    const { user } = response.data;
-    
+    const response = await api.put(`user/${userId}`, userData, config);
+
     // FIXED: Deep clone user data before dispatching
-    const clonedUser = safeClone(user);
+    const clonedUser = safeClone(response.data.data);
     dispatch({ 
       type: USER_UPDATE_PROFILE_SUCCESS, 
       payload: clonedUser

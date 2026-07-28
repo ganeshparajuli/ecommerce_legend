@@ -36,14 +36,7 @@ export const PromoCodeInput: React.FC<PromoCodeInputProps> = ({
 
     if (cartItems && cartItems.length > 0) {
       return cartItems.reduce((total, item) => {
-        const price =
-          item.finalPrice ||
-          item.price ||
-          item.product?.finalPrice ||
-          item.product?.price ||
-          0;
-        const quantity = item.quantity || 1;
-        return total + price * quantity;
+        return total + (item.price || 0) * (item.quantity || 1);
       }, 0);
     }
 

@@ -42,6 +42,7 @@ const ProductDetailPage = () => {
   const [activeTab, setActiveTab] = useState("details");
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
 
   // Redux state
   const { product, loading, error } = useSelector(
@@ -58,6 +59,37 @@ const ProductDetailPage = () => {
       dispatch(getProductDetails(id) as any);
     }
   }, [dispatch, id]);
+
+  // Reset variant selection whenever a new product loads, defaulting to its default variant.
+  useEffect(() => {
+    if (product?.defaultVariant) {
+      setSelectedAttributes(product.defaultVariant.attributes || {});
+      setQuantity(1);
+    }
+  }, [product?.id]);
+
+  // Every attribute dimension across this product's variants (e.g. Storage: [256GB, 500GB]).
+  const attributeOptions = React.useMemo(() => {
+    const options: Record<string, string[]> = {};
+    (product?.variants || []).forEach((variant) => {
+      Object.entries(variant.attributes || {}).forEach(([key, value]) => {
+        if (!options[key]) options[key] = [];
+        if (!options[key].includes(value)) options[key].push(value);
+      });
+    });
+    return options;
+  }, [product?.variants]);
+
+  // The variant matching the currently selected attribute combination, if one exists.
+  const selectedVariant = React.useMemo(() => {
+    if (!product?.variants?.length) return product?.defaultVariant;
+    const match = product.variants.find((variant) =>
+      Object.entries(selectedAttributes).every(([key, value]) => variant.attributes?.[key] === value)
+    );
+    return match || product.defaultVariant;
+  }, [product, selectedAttributes]);
+
+  const hasMultipleVariants = (product?.variants?.length || 0) > 1;
 
   // Check if product is wishlisted
   useEffect(() => {
@@ -106,9 +138,14 @@ const ProductDetailPage = () => {
       return;
     }
 
+    if (!selectedVariant?.id) {
+      toast.error("Please select a valid option before adding to cart");
+      return;
+    }
+
     setAddingToCart(true);
     try {
-      dispatch(addToCart({ ...product, quantity }) as any);
+      dispatch(addToCart(selectedVariant.id, quantity) as any);
 
       toast.success(
         <div className="flex items-center">
@@ -361,7 +398,7 @@ const ProductDetailPage = () => {
                   {product.rating || 0}
                 </span>
                 <span className="text-sm sm:text-base text-gray-600">
-                  ({product.reviews || 0} reviews)
+                  ({product.reviewCount || 0} reviews)
                 </span>
               </div>
               <p className="text-sm sm:text-base text-gray-600">
@@ -487,7 +524,7 @@ const ProductDetailPage = () => {
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <div className="flex">{renderStars(product.rating || 0)}</div>
                 <span className="text-xs sm:text-sm text-gray-600">
-                  ({product.reviews || 0} reviews)
+                  ({product.reviewCount || 0} reviews)
                 </span>
               </div>
             </div>
@@ -496,19 +533,19 @@ const ProductDetailPage = () => {
             <div className="space-y-1 sm:space-y-2">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="text-2xl sm:text-3xl font-bold text-red-600">
-                  {formatPrice(product.finalPrice)}
+                  {formatPrice(selectedVariant?.price ?? product.finalPrice)}
                 </span>
-                {getPriceAsNumber(product.actualPrice) >
-                  getPriceAsNumber(product.finalPrice) && (
+                {getPriceAsNumber(selectedVariant?.compareAtPrice) >
+                  getPriceAsNumber(selectedVariant?.price) && (
                   <>
                     <span className="text-base sm:text-lg text-gray-500 line-through">
-                      {formatPrice(product.actualPrice)}
+                      {formatPrice(selectedVariant?.compareAtPrice)}
                     </span>
                     <span className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold">
                       -
                       {calculateDiscount(
-                        product.actualPrice,
-                        product.finalPrice
+                        selectedVariant?.compareAtPrice,
+                        selectedVariant?.price
                       )}
                       % OFF
                     </span>
@@ -516,6 +553,51 @@ const ProductDetailPage = () => {
                 )}
               </div>
             </div>
+
+            {/* Variant selector - one row of options per attribute dimension (e.g. Storage, Color) */}
+            {hasMultipleVariants && Object.keys(attributeOptions).length > 0 && (
+              <div className="space-y-3 sm:space-y-4">
+                {Object.entries(attributeOptions).map(([attrKey, values]) => (
+                  <div key={attrKey}>
+                    <span className="font-medium text-gray-900 text-sm sm:text-base capitalize block mb-2">
+                      {attrKey}:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {values.map((value) => {
+                        const isSelected = selectedAttributes[attrKey] === value;
+                        const wouldMatch = product.variants.some((v) =>
+                          Object.entries({ ...selectedAttributes, [attrKey]: value }).every(
+                            ([k, val]) => v.attributes?.[k] === val
+                          )
+                        );
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={!wouldMatch}
+                            onClick={() =>
+                              setSelectedAttributes((prev) => ({ ...prev, [attrKey]: value }))
+                            }
+                            className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all ${
+                              isSelected
+                                ? "border-red-600 bg-red-50 text-red-700"
+                                : wouldMatch
+                                ? "border-gray-300 bg-white hover:border-red-400 text-gray-700"
+                                : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed line-through"
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {selectedVariant?.sku && (
+                  <p className="text-xs text-gray-500">SKU: {selectedVariant.sku}</p>
+                )}
+              </div>
+            )}
 
             {/* Product Details */}
             <div className="bg-gray-50 p-4 sm:p-6 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3 border border-gray-200">
@@ -525,10 +607,10 @@ const ProductDetailPage = () => {
                 </span>
                 <span
                   className={`font-semibold text-sm sm:text-base ${
-                    product.quantity > 0 ? "text-green-600" : "text-red-600"
+                    (selectedVariant?.quantity ?? 0) > 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  {product.quantity > 0 ? "In Stock" : "Out of Stock"}
+                  {(selectedVariant?.quantity ?? 0) > 0 ? "In Stock" : "Out of Stock"}
                 </span>
               </div>
               {product.sku && (
@@ -582,9 +664,9 @@ const ProductDetailPage = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAddToCart}
-                  disabled={addingToCart || product.quantity === 0}
+                  disabled={addingToCart || (selectedVariant?.quantity ?? 0) === 0}
                   className={`flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base ${
-                    addingToCart || product.quantity === 0
+                    addingToCart || (selectedVariant?.quantity ?? 0) === 0
                       ? "opacity-75 cursor-not-allowed"
                       : ""
                   }`}
@@ -605,7 +687,7 @@ const ProductDetailPage = () => {
                   ) : (
                     <>
                       <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {product.quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                      {(selectedVariant?.quantity ?? 0) === 0 ? "Out of Stock" : "Add to Cart"}
                     </>
                   )}
                 </motion.button>

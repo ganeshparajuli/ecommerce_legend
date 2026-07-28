@@ -8,7 +8,7 @@ const AuthDebugger = () => {
   
   useEffect(() => {
     console.log("=== AUTH DEBUG ===");
-    console.log("Token:", localStorage.getItem("token"));
+    console.log("Token present:", Boolean(localStorage.getItem("token")));
     console.log("LoggedOut:", localStorage.getItem("loggedOut"));
     console.log("User in Redux:", user);
     console.log("Role in Redux:", user?.role);
