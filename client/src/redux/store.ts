@@ -16,6 +16,8 @@ import { contactReducer } from "../redux/reducers/contactReducer";
 import { faqReducer } from "../redux/reducers/faqReducer";
 import { wishListReducer } from "../redux/reducers/wishListReducer";
 import { brandReducer } from "../redux/reducers/brandReducer";
+import { categorySeriesReducer } from "../redux/reducers/categorySeriesReducer";
+import { reviewReducer } from "../redux/reducers/reviewReducer";
 
 // CRITICAL: Import newsletter reducer with proper fallback
 import { newsletterReducer } from "../redux/reducers/newsletterReducer";
@@ -112,6 +114,8 @@ export const store = configureStore({
     cart: cartReducer,
     order: orderReducer,
     category: categoryReducer,
+    categorySeries: categorySeriesReducer,
+    reviews: reviewReducer,
     sales: saleReducer,
     payment: paymentReducer,
     profile: profileReducer,

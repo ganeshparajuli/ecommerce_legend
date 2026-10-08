@@ -1,36 +1,17 @@
-import { ActionTypes } from '../types/actionTypes';
+export const REVIEWS_FETCH_REQUEST = "REVIEWS_FETCH_REQUEST";
+export const REVIEWS_FETCH_SUCCESS = "REVIEWS_FETCH_SUCCESS";
+export const REVIEWS_FETCH_FAIL = "REVIEWS_FETCH_FAIL";
 
-export const GetUserReviews: ActionTypes = {
-  Request: "getUserReviewsRequest",
-  Success: "getUserReviewsSuccess",
-  Fail: "getUserReviewsFail",
-};
+export const REVIEW_SUBMIT_REQUEST = "REVIEW_SUBMIT_REQUEST";
+export const REVIEW_SUBMIT_SUCCESS = "REVIEW_SUBMIT_SUCCESS";
+export const REVIEW_SUBMIT_FAIL = "REVIEW_SUBMIT_FAIL";
 
-export const DeleteReview: ActionTypes = {
-  Request: "deleteReviewRequest",
-  Success: "deleteReviewSuccess",
-  Fail: "deleteReviewFail",
-};
+export const REVIEW_DELETE_REQUEST = "REVIEW_DELETE_REQUEST";
+export const REVIEW_DELETE_SUCCESS = "REVIEW_DELETE_SUCCESS";
+export const REVIEW_DELETE_FAIL = "REVIEW_DELETE_FAIL";
 
-export const ClearReviewErrors: string = "clearReviewErrors";
+export const REVIEW_TOGGLE_VIS_REQUEST = "REVIEW_TOGGLE_VIS_REQUEST";
+export const REVIEW_TOGGLE_VIS_SUCCESS = "REVIEW_TOGGLE_VIS_SUCCESS";
+export const REVIEW_TOGGLE_VIS_FAIL = "REVIEW_TOGGLE_VIS_FAIL";
 
-// Review-specific types
-export type Review = {
-  id: string;
-  userId: string;
-  productId: string;
-  rating: number;
-  comment: string;
-  userName?: string;
-  productName?: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type ReviewState = {
-  reviews: Review[];
-  loading: boolean;
-  error: string | null;
-  success: boolean;
-  isDeleted: boolean;
-};
+export const REVIEW_CLEAR_ERROR = "REVIEW_CLEAR_ERROR";

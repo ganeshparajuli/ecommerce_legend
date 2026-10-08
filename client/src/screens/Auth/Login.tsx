@@ -102,6 +102,11 @@ const UserLogin: React.FC = () => {
           )
             return false;
           if (
+            route.includes("/admin/series") &&
+            !["admin", "sub-admin"].includes(role)
+          )
+            return false;
+          if (
             route.includes("/admin/brands") &&
             !["admin", "sub-admin"].includes(role)
           )

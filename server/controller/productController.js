@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Product, ProductImage, ProductVariant, Brand, Category, sequelize } = require("../models");
+const { Product, ProductImage, ProductVariant, Brand, Category, CategorySeries, sequelize } = require("../models");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendSuccess, ApiError } = require("../utils/apiResponse");
 const requireFields = require("../utils/validateRequest");
@@ -9,6 +9,7 @@ const PRODUCT_INCLUDES = [
   { model: ProductVariant, as: "variants", separate: true, order: [["createdAt", "ASC"]] },
   { model: Brand, as: "brand" },
   { model: Category, as: "category" },
+  { model: CategorySeries, as: "series" },
 ];
 
 function serializeProduct(product) {
@@ -79,6 +80,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
         name: req.body.name.trim(),
         brandId: req.body.brandId || null,
         categoryId: req.body.categoryId || null,
+        seriesId: req.body.seriesId || null,
         description: req.body.description || null,
         productDetails: req.body.productDetails || req.body.description || null,
         keyFeatures: parseJsonField(req.body.keyFeatures, []) || [],
@@ -141,6 +143,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   if (req.body.name !== undefined) updates.name = req.body.name.trim();
   if (req.body.brandId !== undefined) updates.brandId = req.body.brandId || null;
   if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId || null;
+  if (req.body.seriesId !== undefined) updates.seriesId = req.body.seriesId || null;
   if (req.body.isFeatured !== undefined) {
     updates.isFeatured = req.body.isFeatured === true || req.body.isFeatured === "true";
   }
@@ -210,10 +213,11 @@ exports.updateProduct = asyncHandler(async (req, res) => {
 });
 
 exports.getAllProducts = asyncHandler(async (req, res) => {
-  const { status, includeDeleted, brandId, categoryId, featured } = req.query;
+  const { status, includeDeleted, brandId, categoryId, seriesId, featured } = req.query;
   const where = {};
   if (brandId) where.brandId = brandId;
   if (categoryId) where.categoryId = categoryId;
+  if (seriesId) where.seriesId = seriesId;
   if (featured === "true") where.isFeatured = true;
 
   let paranoid = true;
@@ -244,11 +248,12 @@ exports.getFeaturedProducts = asyncHandler(async (req, res) => {
 });
 
 exports.searchProducts = asyncHandler(async (req, res) => {
-  const { name, brandId, categoryId, minPrice, maxPrice, inStock } = req.query;
+  const { name, brandId, categoryId, seriesId, minPrice, maxPrice, inStock } = req.query;
   const where = {};
   if (name) where.name = { [Op.iLike]: `%${name}%` };
   if (brandId) where.brandId = brandId;
   if (categoryId) where.categoryId = categoryId;
+  if (seriesId) where.seriesId = seriesId;
 
   const variantWhere = {};
   if (minPrice) variantWhere.price = { ...variantWhere.price, [Op.gte]: parseFloat(minPrice) };
@@ -288,6 +293,14 @@ exports.getProductBySKU = asyncHandler(async (req, res) => {
 exports.getProductsByCategory = asyncHandler(async (req, res) => {
   const products = await Product.findAll({
     where: { categoryId: req.params.categoryId },
+    include: PRODUCT_INCLUDES,
+  });
+  sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });
+});
+
+exports.getProductsBySeries = asyncHandler(async (req, res) => {
+  const products = await Product.findAll({
+    where: { seriesId: req.params.seriesId },
     include: PRODUCT_INCLUDES,
   });
   sendSuccess(res, { data: products.map(serializeProduct), meta: { count: products.length } });

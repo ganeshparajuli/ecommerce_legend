@@ -1,7 +1,11 @@
-const { CategorySeries, Category } = require("../models");
+const { CategorySeries, Category, Brand } = require("../models");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendSuccess, ApiError } = require("../utils/apiResponse");
 const requireFields = require("../utils/validateRequest");
+
+const SERIES_INCLUDES = [
+  { model: Category, as: "category", include: [{ model: Brand, as: "brand" }] },
+];
 
 exports.createCategorySeries = asyncHandler(async (req, res) => {
   const { series_name, category_id, is_active } = req.body;
@@ -16,12 +20,17 @@ exports.createCategorySeries = asyncHandler(async (req, res) => {
 });
 
 exports.getAllCategoriesSeries = asyncHandler(async (req, res) => {
-  const series = await CategorySeries.findAll({ include: [{ model: Category, as: "category" }], order: [["seriesName", "ASC"]] });
+  const { categoryId } = req.query;
+  const series = await CategorySeries.findAll({
+    where: categoryId ? { categoryId } : undefined,
+    include: SERIES_INCLUDES,
+    order: [["seriesName", "ASC"]],
+  });
   sendSuccess(res, { data: series });
 });
 
 exports.getCategorySeriesById = asyncHandler(async (req, res) => {
-  const series = await CategorySeries.findByPk(req.params.id, { include: [{ model: Category, as: "category" }] });
+  const series = await CategorySeries.findByPk(req.params.id, { include: SERIES_INCLUDES });
   if (!series) throw new ApiError(404, "Category series not found");
   sendSuccess(res, { data: series });
 });

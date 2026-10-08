@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Brands from "./pages/Brands";
 import Categories from "./pages/Categories";
+import Series from "./pages/Series";
 import Newsletters from "./pages/Newsletter";
 import Orders from "./pages/Orders";
 import Customers from "./pages/Customers";
@@ -84,6 +85,19 @@ const Admin: React.FC = () => {
             <RoleBasedRoute allowedRoles={["admin", "sub-admin", "sales"]}>
               <AdminLayout>
                 <Categories />
+              </AdminLayout>
+            </RoleBasedRoute>
+          </ProtectedRoute>
+        }
+      />
+      {/* Series - Admin + Sub-Admin + Sales */}
+      <Route
+        path="/series"
+        element={
+          <ProtectedRoute>
+            <RoleBasedRoute allowedRoles={["admin", "sub-admin", "sales"]}>
+              <AdminLayout>
+                <Series />
               </AdminLayout>
             </RoleBasedRoute>
           </ProtectedRoute>

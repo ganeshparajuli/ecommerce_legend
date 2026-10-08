@@ -14,6 +14,7 @@ import {
   RestoreProduct,
   BulkRestoreProducts,
   ProductsByCategory,
+  ProductsBySeries,
   UpdateProductStock,
   UpdateProductRating,
   ClearProductErrors,
@@ -25,6 +26,7 @@ const initialState: ProductState = {
   products: [],
   featuredProducts: [],
   searchResults: [],
+  seriesProducts: [],
   deletedProducts: [], // NEW: For deleted products
   product: null,
   loading: false,
@@ -682,6 +684,30 @@ export const productReducer: Reducer<ProductState> = (state = initialState, acti
         loading: false,
         error: action.payload,
         searchResults: [], // Clear on failure
+      };
+
+    // Products By Series
+    case ProductsBySeries.Request:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case ProductsBySeries.Success:
+      return {
+        ...state,
+        loading: false,
+        seriesProducts: safeCloneProducts(action.payload || []),
+        error: null,
+      };
+
+    case ProductsBySeries.Fail:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+        seriesProducts: [],
       };
 
     // Clear Errors

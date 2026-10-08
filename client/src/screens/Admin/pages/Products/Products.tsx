@@ -55,6 +55,8 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { getAllCategories } from "../../../../redux/actions/categoryAction";
 import { getAllBrands } from "../../../../redux/actions/brandAction";
+import { getAllCategorySeries } from "../../../../redux/actions/categorySeriesAction";
+import type { CategorySeries } from "../../../../redux/constants/categorySeriesConstants";
 import {
   getAllProducts,
   createProduct,
@@ -109,6 +111,7 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [brandCategories, setBrandCategories] = useState<Category[]>([]);
+  const [categorySeriesOptions, setCategorySeriesOptions] = useState<CategorySeries[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeTab, setActiveTab] = useState<"active" | "deleted">("active");
@@ -147,6 +150,7 @@ const Products = () => {
     name: "",
     brandId: "",
     categoryId: "",
+    seriesId: "",
     description: "",
     productDetails: "",
     featured: false,
@@ -192,6 +196,7 @@ const Products = () => {
   } = useSelector((state: RootState) => state.products);
   const { categories } = useSelector((state: RootState) => state.category);
   const { brands } = useSelector((state: RootState) => state.brand);
+  const { categorySeries } = useSelector((state: RootState) => state.categorySeries);
 
   // Show notification for 3 seconds
   useEffect(() => {
@@ -260,6 +265,7 @@ const Products = () => {
   useEffect(() => {
     dispatch(getAllCategories() as any);
     dispatch(getAllBrands() as any);
+    dispatch(getAllCategorySeries() as any);
     dispatch(getAllProducts());
   }, [dispatch]);
 
@@ -281,6 +287,17 @@ const Products = () => {
       setBrandCategories(categories);
     }
   }, [selectedBrandId, categories]);
+
+  // Update series options when the selected category or series list changes
+  useEffect(() => {
+    if (formData.categoryId && categorySeries.length > 0) {
+      setCategorySeriesOptions(
+        categorySeries.filter((series: CategorySeries) => series.categoryId === formData.categoryId)
+      );
+    } else {
+      setCategorySeriesOptions([]);
+    }
+  }, [formData.categoryId, categorySeries]);
 
   // NEW: Bulk operation handlers
   const handleSelectAll = () => {
@@ -386,6 +403,7 @@ const Products = () => {
       name: "",
       brandId: "",
       categoryId: "",
+      seriesId: "",
       description: "",
       productDetails: "",
       featured: false,
@@ -446,6 +464,15 @@ const Products = () => {
       ...formData,
       brandId,
       categoryId: "", // Reset category when brand changes
+      seriesId: "", // Reset series when brand (and therefore category) changes
+    });
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      categoryId: e.target.value,
+      seriesId: "", // Reset series when category changes
     });
   };
 
@@ -510,6 +537,7 @@ const Products = () => {
       name: product.name,
       brandId: product.brandId || "",
       categoryId: product.categoryId || "",
+      seriesId: product.seriesId || "",
       description: product.description || "",
       productDetails: product.productDetails || "",
       featured: product.featured || false,
@@ -801,6 +829,7 @@ const Products = () => {
       productData.append("name", formData.name.trim());
       productData.append("brandId", formData.brandId);
       productData.append("categoryId", formData.categoryId);
+      productData.append("seriesId", formData.seriesId);
       productData.append("description", formData.description);
       productData.append("productDetails", formData.productDetails);
       productData.append("featured", formData.featured.toString());
@@ -1601,7 +1630,7 @@ const Products = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <label className="text-sm font-semibold text-gray-700 mb-2 block">
                     Brand
@@ -1628,7 +1657,7 @@ const Products = () => {
                   <select
                     name="categoryId"
                     value={formData.categoryId}
-                    onChange={handleInputChange}
+                    onChange={handleCategoryChange}
                     disabled={!selectedBrandId}
                     className={`w-full h-12 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white ${
                       formErrors.category ? "border-red-300" : ""
@@ -1650,6 +1679,32 @@ const Products = () => {
                       {formErrors.category}
                     </p>
                   )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Series
+                  </label>
+                  <select
+                    name="seriesId"
+                    value={formData.seriesId}
+                    onChange={handleInputChange}
+                    disabled={!formData.categoryId}
+                    className={`w-full h-12 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white ${
+                      !formData.categoryId ? "bg-gray-100" : ""
+                    }`}
+                  >
+                    <option value="">
+                      {formData.categoryId
+                        ? "No series"
+                        : "Select a category first"}
+                    </option>
+                    {categorySeriesOptions.map((series) => (
+                      <option key={series.id} value={series.id}>
+                        {series.seriesName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

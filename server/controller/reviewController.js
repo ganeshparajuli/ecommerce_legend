@@ -1,11 +1,11 @@
-const { Review, Product, sequelize } = require("../models");
+const { Review, Product, User, sequelize } = require("../models");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendSuccess, ApiError } = require("../utils/apiResponse");
-const requireFields = require("../utils/validateRequest");
+const { Op } = require("sequelize");
 
 async function recalculateProductRating(productId, transaction) {
   const [result] = await Review.findAll({
-    where: { productId },
+    where: { productId, isVisible: true },
     attributes: [
       [sequelize.fn("AVG", sequelize.col("rating")), "avgRating"],
       [sequelize.fn("COUNT", sequelize.col("id")), "count"],
@@ -19,25 +19,46 @@ async function recalculateProductRating(productId, transaction) {
   );
 }
 
+// Public: get visible reviews for a product
+exports.getReviewsByProductId = asyncHandler(async (req, res) => {
+  const isAdmin = req.user && ["admin", "sub-admin"].includes(req.user.role);
+  const where = { productId: req.params.productId };
+  if (!isAdmin) where.isVisible = true;
+
+  const reviews = await Review.findAll({
+    where,
+    include: [{ model: User, as: "user", attributes: ["id", "name", "image"] }],
+    order: [["createdAt", "DESC"]],
+  });
+  sendSuccess(res, { data: reviews });
+});
+
+// Admin: get all reviews
 exports.getAllReviews = asyncHandler(async (req, res) => {
-  const reviews = await Review.findAll({ order: [["createdAt", "DESC"]] });
+  const reviews = await Review.findAll({
+    include: [
+      { model: User, as: "user", attributes: ["id", "name", "image"] },
+      { model: Product, as: "product", attributes: ["id", "name"] },
+    ],
+    order: [["createdAt", "DESC"]],
+  });
   sendSuccess(res, { data: reviews });
 });
 
 exports.getReviewById = asyncHandler(async (req, res) => {
-  const review = await Review.findByPk(req.params.id);
+  const review = await Review.findByPk(req.params.id, {
+    include: [{ model: User, as: "user", attributes: ["id", "name", "image"] }],
+  });
   if (!review) throw new ApiError(404, "Review not found");
   sendSuccess(res, { data: review });
 });
 
-exports.getReviewsByProductId = asyncHandler(async (req, res) => {
-  const reviews = await Review.findAll({ where: { productId: req.params.productId }, order: [["createdAt", "DESC"]] });
-  sendSuccess(res, { data: reviews });
-});
-
+// Authenticated users only
 exports.createReview = asyncHandler(async (req, res) => {
-  const { product_id, reviewer_name, rating, comment } = req.body;
-  requireFields(req.body, ["product_id", "reviewer_name", "rating", "comment"]);
+  const { product_id, rating, comment } = req.body;
+  if (!product_id || !rating || !comment) {
+    throw new ApiError(400, "product_id, rating and comment are required");
+  }
 
   const product = await Product.findByPk(product_id);
   if (!product) throw new ApiError(404, "Product not found");
@@ -47,21 +68,52 @@ exports.createReview = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Rating must be between 1 and 5");
   }
 
+  // One review per user per product
+  const existing = await Review.findOne({ where: { productId: product_id, userId: req.user.id } });
+  if (existing) throw new ApiError(400, "You have already reviewed this product");
+
   const review = await sequelize.transaction(async (t) => {
     const created = await Review.create(
-      { productId: product_id, userId: req.user?.id || null, reviewerName: reviewer_name, rating: ratingNum, comment },
+      {
+        productId: product_id,
+        userId: req.user.id,
+        reviewerName: req.user.name,
+        rating: ratingNum,
+        comment,
+        isVisible: true,
+      },
       { transaction: t }
     );
     await recalculateProductRating(product_id, t);
     return created;
   });
 
-  sendSuccess(res, { status: 201, message: "Review created", data: review });
+  const withUser = await Review.findByPk(review.id, {
+    include: [{ model: User, as: "user", attributes: ["id", "name", "image"] }],
+  });
+  sendSuccess(res, { status: 201, message: "Review submitted", data: withUser });
+});
+
+// Admin: toggle visibility
+exports.toggleReviewVisibility = asyncHandler(async (req, res) => {
+  const review = await Review.findByPk(req.params.id);
+  if (!review) throw new ApiError(404, "Review not found");
+
+  await sequelize.transaction(async (t) => {
+    await review.update({ isVisible: !review.isVisible }, { transaction: t });
+    await recalculateProductRating(review.productId, t);
+  });
+
+  sendSuccess(res, { message: `Review ${review.isVisible ? "hidden" : "visible"}`, data: { isVisible: review.isVisible } });
 });
 
 exports.updateReview = asyncHandler(async (req, res) => {
   const review = await Review.findByPk(req.params.id);
   if (!review) throw new ApiError(404, "Review not found");
+
+  // Only owner or admin can edit
+  const isAdmin = req.user && ["admin", "sub-admin"].includes(req.user.role);
+  if (!isAdmin && review.userId !== req.user.id) throw new ApiError(403, "Not allowed");
 
   const { rating, comment } = req.body;
   const updates = {};
@@ -83,6 +135,10 @@ exports.updateReview = asyncHandler(async (req, res) => {
 exports.deleteReview = asyncHandler(async (req, res) => {
   const review = await Review.findByPk(req.params.id);
   if (!review) throw new ApiError(404, "Review not found");
+
+  // Only owner or admin can delete
+  const isAdmin = req.user && ["admin", "sub-admin"].includes(req.user.role);
+  if (!isAdmin && review.userId !== req.user.id) throw new ApiError(403, "Not allowed");
 
   await sequelize.transaction(async (t) => {
     const productId = review.productId;

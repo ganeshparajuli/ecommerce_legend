@@ -12,6 +12,7 @@ import { contactReducer } from './contactReducer';
 import { faqReducer } from './faqReducer';
 import { wishListReducer } from './wishListReducer';
 import { brandReducer } from './brandReducer';
+import { categorySeriesReducer } from './categorySeriesReducer';
 import { newsletterReducer } from './newsletterReducer'; // CRITICAL: Import newsletter reducer
 
 import {
@@ -38,6 +39,7 @@ export {
   faqReducer,
   wishListReducer,
   brandReducer,
+  categorySeriesReducer,
   newsletterReducer, // CRITICAL: Export newsletter reducer
   activePromoCodesReducer,
   appliedPromoCodeReducer,

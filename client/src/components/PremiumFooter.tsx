@@ -220,17 +220,26 @@ const CompactFooter: React.FC = () => {
                 : "opacity-0 translate-y-10"
             }`}
           >
-            <h3 className="text-white text-xl font-semibold mb-6">
+            {/* Brand lockup */}
+            <div className="mb-6">
               <StoreImage
                 src={getImageUrl(displayStoreSettings.footerLogo)}
                 alt={`${displayStoreSettings.storeName} Logo`}
-                className="inline-block border-b-2 h-14 border-white/30 pb-2"
+                className="h-12 w-auto object-contain"
               />
-            </h3>
+              <div className="mt-2 flex items-center gap-1.5">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-white/50 flex-shrink-0" fill="currentColor">
+                  <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 011.06-1.06l1.47 1.47 3.47-3.47a.75.75 0 011.06 1.06z"/>
+                </svg>
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-medium">
+                  Apple Authorized Reseller
+                </span>
+              </div>
+            </div>
 
             <div className="space-y-4 text-white/80 text-base">
-              <p className="text-lg font-medium text-white">
-                Apple Authorized Reseller
+              <p className="text-sm text-white/60 leading-relaxed">
+                Your trusted Apple Premium Reseller in Nepal, delivering genuine products with certified support.
               </p>
               <div className="flex items-start space-x-3">
                 <MapPin className="h-5 w-5 text-white/60 mt-1 flex-shrink-0" />
@@ -412,12 +421,22 @@ const CompactFooter: React.FC = () => {
         <div className="md:hidden space-y-6">
           {/* Store Info - Always visible on mobile - Expanded */}
           <div className="text-center pb-6 border-b border-white/10">
-            <h2 className="text-white text-lg font-semibold mb-3">
-              {displayStoreSettings.storeName}
-            </h2>
-            <p className="text-white/70 text-base mb-4">
-              Apple Authorized Reseller
-            </p>
+            {/* Logo */}
+            <div className="flex flex-col items-center mb-4">
+              <StoreImage
+                src={getImageUrl(displayStoreSettings.footerLogo)}
+                alt={`${displayStoreSettings.storeName} Logo`}
+                className="h-11 w-auto object-contain mx-auto"
+              />
+              <div className="mt-2 flex items-center justify-center gap-1.5">
+                <svg viewBox="0 0 16 16" className="w-3 h-3 text-white/50 flex-shrink-0" fill="currentColor">
+                  <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 011.06-1.06l1.47 1.47 3.47-3.47a.75.75 0 011.06 1.06z"/>
+                </svg>
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-medium">
+                  Apple Authorized Reseller
+                </span>
+              </div>
+            </div>
             <div className="space-y-3 text-white/80 text-base">
               <p className="leading-relaxed">
                 {displayStoreSettings.storeAddress}

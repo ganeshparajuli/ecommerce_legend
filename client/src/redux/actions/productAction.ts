@@ -14,6 +14,7 @@ import {
   RestoreProduct,
   BulkRestoreProducts,
   ProductsByCategory,
+  ProductsBySeries,
   UpdateProductStock,
   UpdateProductRating,
   ClearProductErrors,
@@ -62,6 +63,8 @@ export const normalizeProduct = (raw: any): Product => {
     defaultVariant,
     brand: raw.brand?.name || null,
     category: raw.category?.name || null,
+    seriesId: raw.seriesId ?? raw.series?.id ?? null,
+    series: raw.series?.seriesName || null,
     image: Array.isArray(raw.images) ? raw.images.map((img: any) => img.url) : [],
     finalPrice: defaultVariant.price,
     actualPrice: defaultVariant.compareAtPrice || defaultVariant.price,
@@ -251,6 +254,18 @@ export const getProductsByCategory = (categoryId: string) => async (dispatch: Di
     return response.data;
   } catch (error) {
     dispatch({ type: ProductsByCategory.Fail, payload: getErrorMessage(error) });
+    throw error;
+  }
+};
+
+export const getProductsBySeries = (seriesId: string) => async (dispatch: Dispatch<AnyAction>): Promise<any> => {
+  try {
+    dispatch({ type: ProductsBySeries.Request });
+    const response = await api.get(`product/series/${seriesId}`);
+    dispatch({ type: ProductsBySeries.Success, payload: normalizeList(response.data?.data) });
+    return response.data;
+  } catch (error) {
+    dispatch({ type: ProductsBySeries.Fail, payload: getErrorMessage(error) });
     throw error;
   }
 };

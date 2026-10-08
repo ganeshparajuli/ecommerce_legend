@@ -28,6 +28,7 @@ import {
   Home,
   Tag,
   FolderOpen,
+  Layers,
   Ticket,
   Mail,
   MessageCircleQuestion,
@@ -107,7 +108,8 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ toggleSidebar }) => {
       '/admin': 'Dashboard',
       '/admin/dashboard': 'Dashboard',
       '/admin/brands': 'Brand Management',
-      '/admin/categories': 'Category Management', 
+      '/admin/categories': 'Category Management',
+      '/admin/series': 'Series Management',
       '/admin/products': 'Product Management',
       '/admin/orders': 'Order Management',
       '/admin/promocodes': 'Promo Code Management',
@@ -185,10 +187,17 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ toggleSidebar }) => {
       color: 'text-pink-600',
       roles: ['admin', 'sub-admin', 'sales']
     },
-    { 
-      icon: FolderOpen, 
-      label: 'Categories', 
+    {
+      icon: FolderOpen,
+      label: 'Categories',
       path: '/admin/categories',
+      color: 'text-indigo-600',
+      roles: ['admin', 'sub-admin', 'sales']
+    },
+    {
+      icon: Layers,
+      label: 'Series',
+      path: '/admin/series',
       color: 'text-indigo-600',
       roles: ['admin', 'sub-admin', 'sales']
     },

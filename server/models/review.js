@@ -35,6 +35,7 @@ module.exports = (sequelize, DataTypes) => {
         validate: { min: 1, max: 5 },
       },
       comment: DataTypes.TEXT,
+      isVisible: { type: DataTypes.BOOLEAN, defaultValue: true },
     },
     {
       sequelize,

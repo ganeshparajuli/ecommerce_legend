@@ -93,6 +93,12 @@ export const ProductsByCategory: ActionTypes = {
   Fail: "productsByCategoryFail",
 };
 
+export const ProductsBySeries: ActionTypes = {
+  Request: "productsBySeriesRequest",
+  Success: "productsBySeriesSuccess",
+  Fail: "productsBySeriesFail",
+};
+
 export const UpdateProductStock: ActionTypes = {
   Request: "updateProductStockRequest",
   Success: "updateProductStockSuccess",
@@ -142,6 +148,7 @@ export type Product = {
   slug?: string | null;
   brandId: string | null;
   categoryId: string | null;
+  seriesId: string | null;
   description: string | null;
   productDetails: string | null;
   keyFeatures: string[];
@@ -163,6 +170,7 @@ export type Product = {
   // Derived (view-model) fields - kept for screens that only need a single price/stock/color.
   brand: string | null;
   category: string | null;
+  series: string | null;
   image: string[];
   finalPrice: number;
   actualPrice: number;
@@ -193,6 +201,7 @@ export type ProductState = {
   products: Product[];
   featuredProducts: Product[];
   searchResults: Product[];
+  seriesProducts: Product[];
   deletedProducts: Product[];
   product: Product | null;
   loading: boolean;

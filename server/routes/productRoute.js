@@ -20,6 +20,7 @@ router.get("/featured", productController.getFeaturedProducts);
 router.get("/search", productController.searchProducts);
 router.get("/sku/:sku", productController.getProductBySKU);
 router.get("/category/:categoryId", productController.getProductsByCategory);
+router.get("/series/:seriesId", productController.getProductsBySeries);
 
 // ============================
 // PROTECTED ROUTES (Admin only) - also placed before "/:id"

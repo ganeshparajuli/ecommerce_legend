@@ -5,7 +5,7 @@ const { isAuthenticated, authorizeRoles } = require("../middlewares/auth");
 
 // Existing routes
 router.get("/", categorySeriesController.getAllCategoriesSeries);
-// router.get("/:id", categorySeriesController.getCategorySeriesById);
+router.get("/:id", categorySeriesController.getCategorySeriesById);
 
 router.post(
   "/",

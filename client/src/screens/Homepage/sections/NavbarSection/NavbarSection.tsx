@@ -790,30 +790,28 @@ export const NavbarSection: React.FC = () => {
 
               <Link
                 to="/"
-                className="flex items-center gap-x-4 justify-between group flex-1 max-w-md"
+                className="flex items-center group flex-shrink-0"
+                aria-label="Joy Store – Home"
               >
-                {/* Apple Logo and Authorised Reseller */}
-                <div className="flex items-center">
-                  <div className="flex flex-col justify-center">
-                    <div className="text-lg sm:text-xl md:text-2xl lg:text-2xl xl:text-3xl font-bold text-white tracking-tight leading-tight">
-                      {displayStoreSettings.storeName}
-                    </div>
-                  </div>
+                <div className="flex flex-col items-start leading-none">
+                  {/* Primary logo: admin-uploaded → local fallback */}
+                  {displayStoreSettings.logo ? (
+                    <StoreImage
+                      src={displayStoreSettings.logo}
+                      alt={displayStoreSettings.storeName || "Joy Store"}
+                      className="h-9 sm:h-10 md:h-11 lg:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <img
+                      src={joyStoreLogo}
+                      alt={displayStoreSettings.storeName || "Joy Store"}
+                      className="h-9 sm:h-10 md:h-11 lg:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                    />
+                  )}
+                  <span className="mt-1 text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-gray-400 font-medium select-none">
+                    Apple Authorized Reseller
+                  </span>
                 </div>
-                <div className="flex items-center mr-4">
-                  <StoreImage
-                    src={displayStoreSettings.logo}
-                    alt="Apple Logo"
-                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-14 w-auto object-contain transition-all duration-200 group-hover:scale-105"
-                  />
-                </div>
-                {/* <div className="flex items-center">
-                  <img
-                    src={joyStoreLogo}
-                    alt={displayStoreSettings.storeName || "Joy Store"}
-                    className="h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 w-auto object-contain transition-all duration-200 group-hover:scale-105"
-                  />
-                </div> */}
               </Link>
             </div>
 

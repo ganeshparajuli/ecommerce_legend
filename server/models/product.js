@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Product.belongsTo(models.Brand, { foreignKey: "brandId", as: "brand" });
       Product.belongsTo(models.Category, { foreignKey: "categoryId", as: "category" });
+      Product.belongsTo(models.CategorySeries, { foreignKey: "seriesId", as: "series" });
       Product.hasMany(models.ProductImage, {
         foreignKey: "productId",
         as: "images",
@@ -63,6 +64,12 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.UUID,
         allowNull: true,
         references: { model: "categories", key: "id" },
+        onDelete: "SET NULL",
+      },
+      seriesId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: { model: "category_series", key: "id" },
         onDelete: "SET NULL",
       },
       description: DataTypes.TEXT,

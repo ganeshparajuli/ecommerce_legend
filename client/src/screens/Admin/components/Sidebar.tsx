@@ -6,6 +6,7 @@ import {
   BarChart3,
   Tag,
   FolderOpen,
+  Layers,
   Package,
   ShoppingCart,
   Smartphone,
@@ -73,6 +74,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       path: "/admin/categories",
       icon: FolderOpen,
       label: "Categories",
+      roles: ["admin", "sub-admin", "sales"],
+    },
+    {
+      path: "/admin/series",
+      icon: Layers,
+      label: "Series",
       roles: ["admin", "sub-admin", "sales"],
     },
     {

@@ -39,7 +39,12 @@ const notificationSettingsRoute = require("./routes/notificationSettingsRoute");
 
 const server = express();
 
-const allowedOrigins = [process.env.FRONTEND || "http://localhost:5173"];
+const isProduction = process.env.NODE_ENV === "production";
+const configuredOrigin = process.env.FRONTEND || "http://localhost:5173";
+// Vite picks the next free port (5174, 5175...) whenever something else is
+// already bound to 5173, so dev mode accepts any localhost/127.0.0.1 port
+// instead of hard-failing CORS the moment two dev servers are running.
+const localDevOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
 // contentSecurityPolicy/crossOriginResourcePolicy are disabled because this
 // server also serves the built SPA and /uploads images consumed cross-origin;
@@ -49,7 +54,12 @@ server.use(compression());
 
 server.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // same-origin / curl / server-to-server
+      if (origin === configuredOrigin) return callback(null, true);
+      if (!isProduction && localDevOriginPattern.test(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   })
@@ -65,6 +75,9 @@ const apiLimiter = rateLimit({
   limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  // Dev traffic all shares one localhost IP (my testing + the app itself),
+  // so this would otherwise lock out development long before production risk applies.
+  skip: () => !isProduction,
 });
 server.use("/api", apiLimiter);
 

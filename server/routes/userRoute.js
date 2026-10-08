@@ -12,6 +12,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many attempts, please try again later." },
+  skip: () => process.env.NODE_ENV !== "production",
 });
 
 router.post("/register", authLimiter, upload.single("image"), userController.register);
