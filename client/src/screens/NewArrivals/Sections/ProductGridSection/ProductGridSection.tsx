@@ -152,13 +152,13 @@ export const ProductsGridSection = ({
             >
               {/* Product Image - Clickable to product details */}
               <div 
-                className="relative aspect-[4/5] overflow-hidden bg-gray-50 cursor-pointer"
+                className="relative aspect-square overflow-hidden bg-white cursor-pointer"
                 onClick={() => navigateToProductDetails(product.id)}
               >
                 <img
                   src={product.image}
                   alt={product.name || 'Product image'}
-                  className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-contain p-4 transform transition-transform duration-700 group-hover:scale-105"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = '/image-10-2.png';

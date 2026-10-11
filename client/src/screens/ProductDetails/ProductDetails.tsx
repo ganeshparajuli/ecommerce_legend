@@ -12,6 +12,7 @@ import { getProductDetails } from "../../redux/actions/productAction";
 import { addToCart } from "../../redux/actions/cartAction";
 import { addToWishlist, removeFromWishlist } from "../../redux/actions/wishlistActions";
 import { fetchReviews, submitReview, deleteReview, toggleReviewVisibility } from "../../redux/actions/reviewAction";
+import { myOrders } from "../../redux/actions/orderAction";
 import { ProductImage, getImageUrl } from "../../utils/imageHelper";
 import type { RootState } from "../../redux/store";
 import { formatPrice } from "@/utils/formatPrice";
@@ -169,6 +170,7 @@ const ProductDetailPage = () => {
   const { reviews, loading: reviewsLoading, submitting } = useSelector(
     (state: RootState) => (state as any).reviews || { reviews: [], loading: false, submitting: false }
   );
+  const { orders } = useSelector((state: RootState) => (state as any).order || { orders: [] });
 
   const isAdmin = user && ["admin", "sub-admin"].includes(user.role ?? "");
   const loggedIn = isUserLoggedIn();
@@ -183,8 +185,11 @@ const ProductDetailPage = () => {
   }, [product?.id]);
 
   useEffect(() => {
-    if (activeTab === "reviews" && id) dispatch(fetchReviews(id) as any);
-  }, [activeTab, id, dispatch]);
+    if (activeTab === "reviews" && id) {
+      dispatch(fetchReviews(id) as any);
+      if (loggedIn && user?.id) dispatch(myOrders(user.id) as any);
+    }
+  }, [activeTab, id, dispatch, loggedIn, user?.id]);
 
   useEffect(() => {
     setReviewSubmitted(false);
@@ -230,6 +235,13 @@ const ProductDetailPage = () => {
     star, count: visibleReviews.filter((r: Review) => r.rating === star).length,
   }));
   const userAlreadyReviewed = reviews.some((r: Review) => r.userId === user?.id);
+
+  // Only users with a delivered order containing this product may review
+  const hasPurchasedAndDelivered = Array.isArray(orders) && orders.some((o: any) =>
+    o.status === "delivered" &&
+    Array.isArray(o.items || o.orderItems) &&
+    (o.items || o.orderItems).some((item: any) => item.productId === id || item.product_id === id)
+  );
 
   const isVariantSelected = selectedVariant !== null;
   const maxStock = selectedVariant?.quantity ?? 0;
@@ -546,7 +558,7 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {loggedIn && !userAlreadyReviewed && !reviewSubmitted && (
+        {loggedIn && hasPurchasedAndDelivered && !userAlreadyReviewed && !reviewSubmitted && (
           <div className="bg-white border border-gray-200 rounded-2xl p-5">
             <h4 className="font-semibold text-gray-900 mb-4">Write a Review</h4>
             <form onSubmit={handleReviewSubmit} className="space-y-4">
@@ -583,6 +595,13 @@ const ProductDetailPage = () => {
           </div>
         )}
 
+        {loggedIn && !userAlreadyReviewed && !hasPurchasedAndDelivered && (
+          <div className="flex items-center gap-3 text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <Truck className="w-4 h-4 flex-shrink-0 text-amber-500" />
+            <span>Reviews are only available after your order has been delivered. Purchase this product to share your experience.</span>
+          </div>
+        )}
+
         {!loggedIn && (
           <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
             <button onClick={() => navigate("/login")} className="text-red-600 font-semibold hover:underline">Log in</button>{" "}to write a review.
@@ -595,7 +614,7 @@ const ProductDetailPage = () => {
               className="w-8 h-8 border-2 border-t-red-600 border-r-red-200 border-b-red-200 border-l-red-200 rounded-full" />
           </div>
         ) : reviews.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">No reviews yet. Be the first!</p>
+          <p className="text-sm text-gray-500 py-4">No reviews yet. Be the first to review after receiving your order!</p>
         ) : (
           <div className="space-y-4">
             {(isAdmin ? reviews : visibleReviews).map((review: Review) => (

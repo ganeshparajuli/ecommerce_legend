@@ -590,13 +590,11 @@ const Wishlist: React.FC = () => {
                   <div
                     className={viewMode === "list" ? "flex-shrink-0 mr-6" : ""}
                   >
-                    <div className="relative">
+                    <div className={`relative bg-white rounded-xl overflow-hidden border border-gray-100 ${viewMode === "list" ? "w-32 h-32 flex-shrink-0" : "w-full aspect-square"}`}>
                       <ProductImage
                         src={item.image}
                         alt={item.name}
-                        className={`object-cover rounded-xl ${
-                          viewMode === "list" ? "w-32 h-32" : "w-full h-48"
-                        }`}
+                        className="absolute inset-0 w-full h-full object-contain p-3"
                       />
                       <div className="absolute top-2 right-2">
                         <button

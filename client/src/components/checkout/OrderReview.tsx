@@ -190,11 +190,11 @@ export const OrderReview: React.FC<OrderReviewProps> = ({
                   }`}
                   className="py-4 flex items-center"
                 >
-                  <div className="relative">
+                  <div className="relative w-16 h-16 rounded-lg bg-white border border-gray-100 overflow-hidden flex-shrink-0">
                     <ProductImage
                       src={item.image || item.product?.image}
                       alt={item.name || item.product?.name || "Product"}
-                      className="w-16 h-16 object-cover bg-gray-100 rounded-lg"
+                      className="w-full h-full object-contain p-1.5"
                     />
                     {itemPrice === 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 rounded-lg">

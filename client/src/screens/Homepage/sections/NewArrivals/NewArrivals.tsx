@@ -1,435 +1,158 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ChevronRight,
-  Heart,
-  ShoppingCart,
-  Star,
-  Eye,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
 import { Link } from "react-router-dom";
-import { ProductImage } from "../../../../utils/imageHelper";
-import { getAllProducts } from "../../../../redux/actions/productAction";
+import { motion } from "framer-motion";
+import { ChevronRight, Heart, ShoppingCart, Star } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../../redux/store";
+import { getAllProducts } from "../../../../redux/actions/productAction";
 import { addToCart } from "../../../../redux/actions/cartAction";
-import {
-  addToWishlist,
-  removeFromWishlist,
-} from "../../../../redux/actions/wishlistActions";
-import toast from "react-hot-toast";
+import { addToWishlist, removeFromWishlist } from "../../../../redux/actions/wishlistActions";
+import { ProductImage } from "../../../../utils/imageHelper";
 import { formatPrice } from "@/utils/formatPrice";
+import toast from "react-hot-toast";
 
-// Utility functions
-const isUserLoggedIn = (): boolean => {
-  const token = localStorage.getItem("token");
-  const justLoggedOut = localStorage.getItem("loggedOut");
-  return Boolean(token && justLoggedOut !== "true");
+const isLoggedIn = () => Boolean(localStorage.getItem("token") && localStorage.getItem("loggedOut") !== "true");
+
+const pct = (actual: any, final: any) => {
+  const a = parseFloat(actual), f = parseFloat(final);
+  if (!a || !f || f >= a) return 0;
+  return Math.round(((a - f) / a) * 100);
 };
-
-interface Product {
-  id: string;
-  name: string;
-  actualPrice: number;
-  discountPrice: number;
-  finalPrice: number;
-  description: string;
-  image: string;
-  category: string;
-  size: string;
-  color: string;
-  quantity: number;
-  created_at: string;
-  updated_at: string;
-  rating?: number;
-  isNew?: boolean;
-  isTrending?: boolean;
-}
 
 export const NewArrivals = () => {
   const dispatch = useDispatch();
-  const {
-    products: reduxProducts,
-    loading,
-    error: reduxError,
-  } = useSelector((state: RootState) => state.products);
+  const { products: all, loading } = useSelector((state: RootState) => state.products);
+  const [wishlist, setWishlist] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState<Record<string, boolean>>({});
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [addingToCart, setAddingToCart] = useState<{ [key: string]: boolean }>(
-    {}
-  );
-
-  // Process products data - limit to 5 products for responsive layout
   useEffect(() => {
-    if (reduxProducts && reduxProducts.length > 0) {
-      const processedProducts = reduxProducts
-        .sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .slice(0, 5) // Show 5 products in a row
-        .map((product: any, index: number) => ({
-          ...product,
-          rating: 4 + Math.random() * 1,
-          isNew: index < 3, // First 3 are new
-          isTrending: index < 1, // First 1 is trending
-        }));
+    if (!all?.length && !loading) dispatch(getAllProducts() as any);
+  }, [dispatch, all?.length, loading]);
 
-      setProducts(processedProducts);
-      setIsLoading(false);
-    } else if (loading === false) {
-      if (reduxError) {
-        setError(reduxError);
-      }
-      setIsLoading(false);
-    }
-  }, [reduxProducts, loading, reduxError]);
+  const products = [...(all || [])]
+    .sort((a: any, b: any) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())
+    .slice(0, 10);
 
-  // Initial fetch
-  useEffect(() => {
-    if (!reduxProducts || reduxProducts.length === 0) {
-      dispatch(getAllProducts() as any);
-    }
-  }, [dispatch, reduxProducts]);
-
-  const toggleFavorite = async (productId: string) => {
-    if (!isUserLoggedIn()) {
-      toast.error("Please log in to add items to your wishlist", {
-        duration: 3000,
-        position: "bottom-right",
-      });
-      return;
-    }
-
-    const isCurrentlyFavorited = favorites.has(productId);
-
-    try {
-      let result;
-
-      if (isCurrentlyFavorited) {
-        result = await dispatch(removeFromWishlist(productId) as any);
-
-        if (
-          result &&
-          (result.type === "REMOVE_FROM_WISHLIST_SUCCESS" ||
-            (result.type &&
-              result.type.includes &&
-              result.type.includes("Success")) ||
-            result.success === true)
-        ) {
-          setFavorites((prev) => {
-            const newFavorites = new Set(prev);
-            newFavorites.delete(productId);
-            return newFavorites;
-          });
-
-          toast.success("💔 Removed from wishlist", {
-            duration: 2000,
-            position: "bottom-right",
-          });
-        } else {
-          toast.error("Failed to remove from wishlist. Please try again.", {
-            duration: 3000,
-            position: "bottom-right",
-          });
-        }
-      } else {
-        result = await dispatch(addToWishlist(productId) as any);
-
-        if (
-          result &&
-          (result.type === "ADD_TO_WISHLIST_SUCCESS" ||
-            (result.type &&
-              result.type.includes &&
-              result.type.includes("Success")) ||
-            result.success === true)
-        ) {
-          setFavorites((prev) => {
-            const newFavorites = new Set(prev);
-            newFavorites.add(productId);
-            return newFavorites;
-          });
-
-          toast.success("💖 Added to wishlist!", {
-            duration: 2000,
-            position: "bottom-right",
-          });
-        } else if (result && result.type === "ALREADY_EXISTS") {
-          toast.info("Item already in your wishlist", {
-            duration: 2000,
-            position: "bottom-right",
-          });
-        } else {
-          toast.error("Failed to add to wishlist. Please try again.", {
-            duration: 3000,
-            position: "bottom-right",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("❌ Wishlist error:", error);
-      toast.error("Something went wrong. Please try again.", {
-        duration: 3000,
-        position: "bottom-right",
-      });
-    }
+  const handleCart = (product: any) => {
+    if (!isLoggedIn()) { toast.error("Login to add to cart"); return; }
+    const variantId = product.defaultVariant?.id;
+    if (!variantId) { toast.error("Select a variant on product page"); return; }
+    setAdding(p => ({ ...p, [product.id]: true }));
+    dispatch(addToCart(variantId, 1) as any);
+    toast.success(`${product.name} added to cart`);
+    setTimeout(() => setAdding(p => ({ ...p, [product.id]: false })), 800);
   };
 
-  const handleAddToCart = async (product: Product) => {
-    if (!isUserLoggedIn()) {
-      toast.error("Please log in to add items to your cart", {
-        duration: 3000,
-        position: "bottom-right",
-      });
-      return;
-    }
-
-    setAddingToCart((prev) => ({ ...prev, [product.id]: true }));
-
-    try {
-      dispatch(addToCart({ ...product, quantity: 1 }) as any);
-
-      toast.success(`${product.name} added to cart!`, {
-        duration: 2000,
-        position: "bottom-right",
-      });
-    } catch (error) {
-      toast.error(`Failed to add ${product.name} to cart.`, {
-        duration: 3000,
-        position: "bottom-right",
-      });
-    } finally {
-      setTimeout(() => {
-        setAddingToCart((prev) => ({ ...prev, [product.id]: false }));
-      }, 600);
-    }
+  const handleWishlist = (id: string) => {
+    if (!isLoggedIn()) { toast.error("Login to save items"); return; }
+    setWishlist(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); dispatch(removeFromWishlist(id) as any); toast.success("Removed from wishlist"); }
+      else { next.add(id); dispatch(addToWishlist(id) as any); toast.success("Saved to wishlist"); }
+      return next;
+    });
   };
-
-  const renderStars = (rating: number) => {
-    return [...Array(5)].map((_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < Math.floor(rating)
-            ? "text-yellow-400 fill-current"
-            : "text-gray-300"
-        }`}
-      />
-    ));
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <section className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">
-              New Arrivals
-            </h2>
-            <Link
-              to="/products"
-              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
-            >
-              View all <ChevronRight className="w-4 h-4 ml-1" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-gray-100 h-72 sm:h-80 lg:h-96 rounded-lg animate-pulse"
-              ></div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <section className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black">
-              New Arrivals
-            </h2>
-            <Link
-              to="/products"
-              className="text-black hover:text-gray-600 font-medium text-sm flex items-center"
-            >
-              View all <ChevronRight className="w-4 h-4 ml-1" />
-            </Link>
-          </div>
-          <div className="text-center py-1">
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={() => dispatch(getAllProducts() as any)}
-              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg font-medium"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
-    <section className=" bg-white">
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="bg-white py-10 md:py-14">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-black">
-            New Arrivals
-          </h2>
-          <Link
-            to="/products"
-            className="text-black hover:text-gray-600 font-medium text-sm flex items-center transition-colors"
-          >
-            View all <ChevronRight className="w-4 h-4 ml-1" />
+        <div className="flex items-center justify-between mb-7">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">New Arrivals</h2>
+            <p className="text-sm text-gray-400 mt-0.5">Fresh products just landed</p>
+          </div>
+          <Link to="/products" className="flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">
+            View All <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Products Grid - Responsive Layout */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-          {products.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className="group relative border border-gray-100 rounded-lg"
-              onMouseEnter={() => setHoveredProduct(product.id)}
-              onMouseLeave={() => setHoveredProduct(null)}
-            >
-              <Link to={`/product/${product.id}`} className="block ">
-                <div className="relative overflow-hidden bg-white">
-                  {/* Product Badges */}
-                  {product.isNew && (
-                    <span className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 text-xs font-bold rounded z-10">
-                      NEW
-                    </span>
-                  )}
-
-                  {/* Wishlist Button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleFavorite(product.id);
-                    }}
-                    className={`absolute top-2 right-2 z-10 p-1.5 rounded-full transition-all hover:scale-110 ${
-                      favorites.has(product.id)
-                        ? "bg-red-100 text-red-600"
-                        : "bg-white/80 text-gray-400 hover:text-red-600"
-                    }`}
-                  >
-                    <Heart
-                      className={`w-4 h-4 ${
-                        favorites.has(product.id) ? "fill-current" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* Product Image */}
-                  <div className="relative">
+        {/* Grid */}
+        {loading && !products.length ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="bg-gray-50 rounded-xl overflow-hidden animate-pulse">
+                <div className="aspect-square bg-gray-100" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {products.map((product: any, i) => {
+              const discount = pct(product.actualPrice, product.finalPrice);
+              const price = product.finalPrice || product.actualPrice;
+              return (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:border-gray-200 transition-all duration-200"
+                >
+                  {/* Image */}
+                  <Link to={`/product/${product.id}`} className="relative block aspect-square bg-white overflow-hidden">
                     <ProductImage
-                      src={product.image}
+                      src={Array.isArray(product.image) ? product.image[0] : product.image}
                       alt={product.name}
-                      className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                      className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-400"
                       fallbackUrl="/placeholder.jpg"
                     />
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="p-4">
-                    {/* Price */}
-                    <div className="space-y-1">
-                      {product.actualPrice !== product.finalPrice && (
-                        <span className="text-xs sm:text-sm text-gray-500 line-through block">
-                          {formatPrice(product.actualPrice)}
-                        </span>
-                      )}
-                      <span className="text-sm sm:text-base font-bold text-black block">
-                        {formatPrice(product.finalPrice)}
+                    {discount > 0 && (
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        -{discount}%
                       </span>
-                    </div>
-
-                    <h3 className="font-medium text-gray-800 text-sm sm:text-base leading-tight line-clamp-2">
-                      {product.name}
-                    </h3>
-
-                    {/* Color Variants - Mock data for visual similarity to screenshot */}
-                    <div className="flex items-center space-x-1 pt-1">
-                      <div className="w-4 h-4 rounded-full bg-red-500 border border-gray-200"></div>
-                      <div className="w-4 h-4 rounded-full bg-blue-500 border border-gray-200"></div>
-                      <div className="w-4 h-4 rounded-full bg-green-500 border border-gray-200"></div>
-                      <span className="text-xs text-gray-500 ml-1">+1</span>
-                    </div>
-                  </div>
-                </div>
-                {/* Hover Overlay for Quick Actions */}
-                <AnimatePresence>
-                  {hoveredProduct === product.id && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-black/5 flex items-center justify-center"
-                      // onClick={(e) => e.preventDefault()}
+                    )}
+                    <button
+                      onClick={e => { e.preventDefault(); handleWishlist(product.id); }}
+                      className={`absolute top-2 right-2 p-1.5 rounded-full shadow transition-all ${wishlist.has(product.id) ? "bg-red-600 text-white" : "bg-white/80 text-gray-400 hover:text-red-600"} opacity-0 group-hover:opacity-100`}
                     >
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleAddToCart(product);
-                          }}
-                          disabled={
-                            addingToCart[product.id] || product.quantity <= 0
-                          }
-                          className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all disabled:opacity-50"
-                        >
-                          {addingToCart[product.id] ? (
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{
-                                duration: 1,
-                                repeat: Infinity,
-                                ease: "linear",
-                              }}
-                              className="w-4 h-4 border-2 border-t-gray-600 border-r-transparent border-b-transparent border-l-transparent rounded-full"
-                            />
-                          ) : (
-                            <ShoppingCart className="w-4 h-4 text-gray-700" />
-                          )}
-                        </button>
+                      <Heart className={`w-3.5 h-3.5 ${wishlist.has(product.id) ? "fill-current" : ""}`} />
+                    </button>
+                  </Link>
 
-                        <Link
-                          to={`/product/${product.id}`}
-                          className="p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all"
-                        >
-                          <Eye className="w-4 h-4 text-gray-700" />
-                        </Link>
+                  {/* Info */}
+                  <div className="p-3 border-t border-gray-100">
+                    <Link to={`/product/${product.id}`}>
+                      <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug hover:text-red-600 transition-colors mb-1.5">
+                        {product.name}
+                      </h3>
+                    </Link>
+
+                    {product.rating > 0 && (
+                      <div className="flex items-center gap-1 mb-1.5">
+                        {[...Array(5)].map((_, s) => (
+                          <Star key={s} className={`w-2.5 h-2.5 ${s < Math.round(product.rating) ? "text-amber-400 fill-current" : "text-gray-200 fill-current"}`} />
+                        ))}
+                        {product.reviewCount > 0 && <span className="text-[10px] text-gray-400">({product.reviewCount})</span>}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+                    )}
+
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <span className="text-sm font-bold text-gray-900">{formatPrice(price)}</span>
+                      {discount > 0 && <span className="text-xs text-gray-400 line-through">{formatPrice(product.actualPrice)}</span>}
+                    </div>
+
+                    <button
+                      onClick={() => handleCart(product)}
+                      disabled={!!adding[product.id]}
+                      className="w-full flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 active:scale-95 disabled:bg-gray-100 disabled:text-gray-400 text-white text-xs font-semibold py-2 rounded-lg transition-all"
+                    >
+                      {adding[product.id] ? (
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <><ShoppingCart className="w-3 h-3" /> Add to Cart</>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

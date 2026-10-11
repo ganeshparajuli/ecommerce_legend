@@ -340,11 +340,11 @@ const MyOrders: React.FC = () => {
                         key={item.id}
                         className="flex items-center space-x-4 bg-gray-50 rounded-xl p-4 border border-gray-100 hover:bg-gray-100 transition-colors duration-300"
                       >
-                        <div className="rounded-xl overflow-hidden shadow-sm">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm flex-shrink-0">
                           <ProductImage
                             src={item.image}
                             alt={item.name}
-                            className="w-16 h-16 object-cover"
+                            className="w-full h-full object-contain p-1"
                           />
                         </div>
                         <div className="flex-1 min-w-0">

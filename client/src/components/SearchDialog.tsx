@@ -317,15 +317,17 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
                             }`}
                           >
                             {product.image && (
-                              <ProductImage
-                                src={product.image}
-                                alt={product.name}
-                                className="w-10 h-10 object-cover rounded-md"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "/api/placeholder/40/40";
-                                }}
-                              />
+                              <div className="w-10 h-10 rounded-md bg-white border border-gray-100 flex-shrink-0 overflow-hidden">
+                                <ProductImage
+                                  src={product.image}
+                                  alt={product.name}
+                                  className="w-full h-full object-contain p-0.5"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = "/api/placeholder/40/40";
+                                  }}
+                                />
+                              </div>
                             )}
                             <div className="flex-1">
                               <p className="font-medium text-gray-900 dark:text-white">
@@ -388,15 +390,17 @@ export const SearchDialog: React.FC<SearchDialogProps> = ({
                           }`}
                         >
                           {product.image && (
-                            <ProductImage
-                              src={product.image}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded-md"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = "/api/placeholder/40/40";
-                              }}
-                            />
+                            <div className="w-10 h-10 rounded-md bg-white border border-gray-100 flex-shrink-0 overflow-hidden">
+                              <ProductImage
+                                src={product.image}
+                                alt={product.name}
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = "/api/placeholder/40/40";
+                                }}
+                              />
+                            </div>
                           )}
                           <div className="flex-1">
                             <p className="font-medium text-gray-900 dark:text-white">

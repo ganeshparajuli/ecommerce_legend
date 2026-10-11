@@ -286,11 +286,11 @@ export const OrderComplete: React.FC<OrderCompleteProps> = ({
                         transition={{ delay: index * 0.1 }}
                         className="flex items-center p-4 bg-gray-50 rounded-lg"
                       >
-                        <div className="flex-shrink-0 mr-4">
+                        <div className="w-16 h-16 rounded-lg bg-white border border-gray-100 overflow-hidden flex-shrink-0 mr-4">
                           <ProductImage
                             src={item.image || item.product?.image}
                             alt={item.name || item.product?.name || "Product"}
-                            className="w-16 h-16 object-cover rounded-lg"
+                            className="w-full h-full object-contain p-1.5"
                           />
                         </div>
                         <div className="flex-1">

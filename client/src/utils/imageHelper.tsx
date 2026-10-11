@@ -256,7 +256,7 @@ export const ProductImage: React.FC<ImageProps> = (props) => {
     <Image
       {...props}
       alt={props.alt || "Product image"}
-      className={props.className || "w-full h-64 object-cover"}
+      className={props.className || "w-full h-full object-contain"}
     />
   );
 };

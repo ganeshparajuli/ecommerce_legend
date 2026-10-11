@@ -369,11 +369,11 @@ const OrderDetails: React.FC = () => {
                         key={index}
                         className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
                       >
-                        <div className="flex-shrink-0">
+                        <div className="w-20 h-20 rounded-lg bg-white border border-gray-100 overflow-hidden flex-shrink-0">
                           <ProductImage
                             src={item.product_image}
                             alt={item.product_name}
-                            className="w-20 h-20 object-cover rounded-lg border"
+                            className="w-full h-full object-contain p-1.5"
                           />
                         </div>
                         <div className="flex-1 min-w-0">

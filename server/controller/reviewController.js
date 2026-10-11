@@ -1,4 +1,4 @@
-const { Review, Product, User, sequelize } = require("../models");
+const { Review, Product, User, Order, OrderItem, sequelize } = require("../models");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendSuccess, ApiError } = require("../utils/apiResponse");
 const { Op } = require("sequelize");
@@ -67,6 +67,13 @@ exports.createReview = asyncHandler(async (req, res) => {
   if (!Number.isFinite(ratingNum) || ratingNum < 1 || ratingNum > 5) {
     throw new ApiError(400, "Rating must be between 1 and 5");
   }
+
+  // Only buyers who received the product can review it
+  const purchased = await Order.findOne({
+    where: { userId: req.user.id, status: "delivered" },
+    include: [{ model: OrderItem, as: "items", where: { productId: product_id }, required: true }],
+  });
+  if (!purchased) throw new ApiError(403, "You can only review products you have purchased and received");
 
   // One review per user per product
   const existing = await Review.findOne({ where: { productId: product_id, userId: req.user.id } });

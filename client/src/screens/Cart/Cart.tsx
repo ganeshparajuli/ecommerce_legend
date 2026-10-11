@@ -296,11 +296,11 @@ export const Cart = () => {
                       className="p-4 hover:bg-gray-50 transition-all duration-300"
                     >
                       <div className="flex items-center">
-                        <div className="rounded-xl overflow-hidden shadow-md transform hover:scale-105 transition-all duration-300">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm flex-shrink-0">
                           <ProductImage
                             src={item.product?.image || undefined}
                             alt={item.product?.name || "Product"}
-                            className="w-16 h-16 object-cover"
+                            className="w-full h-full object-contain p-1"
                           />
                         </div>
                         <div className="ml-4 flex-1">
