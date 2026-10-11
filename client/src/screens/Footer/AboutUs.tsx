@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   ShieldCheckIcon,
   TruckIcon,
@@ -11,633 +10,408 @@ import {
   PhoneIcon,
   MailIcon,
   ClockIcon,
-  AwardIcon,
-  TrendingUpIcon,
   CheckCircleIcon,
-  MessageCircleIcon,
   FacebookIcon,
   InstagramIcon,
-  TwitterIcon
+  MessageCircleIcon,
+  ArrowRightIcon,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageLayout, Breadcrumb } from "../Homepage/sections/NavbarSection/NavbarSection";
-import { FooterSection } from "../Homepage/sections/FooterSection/FooterSection";
+import PremiumFooter from "../../components/PremiumFooter";
 
+// ── Animated counter hook ──────────────────────────────────────────────────
+function useCounter(target: number, duration = 1800) {
+  const [value, setValue] = useState(0);
+  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
+  const started = useRef(false);
+
+  const start = () => {
+    if (started.current) return;
+    started.current = true;
+    const steps = 60;
+    const step = target / steps;
+    let current = 0;
+    ref.current = setInterval(() => {
+      current += step;
+      if (current >= target) {
+        setValue(target);
+        if (ref.current) clearInterval(ref.current);
+      } else {
+        setValue(Math.floor(current));
+      }
+    }, duration / steps);
+  };
+
+  useEffect(() => () => { if (ref.current) clearInterval(ref.current); }, []);
+  return { value, start };
+}
+
+// ── Data ───────────────────────────────────────────────────────────────────
+const values = [
+  {
+    icon: ShieldCheckIcon,
+    title: "Quality Assurance",
+    description: "Every product is verified genuine before it reaches our customers — no grey-market goods.",
+  },
+  {
+    icon: TruckIcon,
+    title: "Fast Delivery",
+    description: "Same-day dispatch within Kathmandu and next-day across Nepal.",
+  },
+  {
+    icon: HeartIcon,
+    title: "Customer First",
+    description: "Our support team is available 7 days a week to resolve any issue, fast.",
+  },
+  {
+    icon: UsersIcon,
+    title: "Expert Team",
+    description: "Certified technicians and product specialists guide every purchase decision.",
+  },
+];
+
+const milestones = [
+  { year: "2016", title: "Company Founded", description: "Started as a small electronics retailer with a vision to provide quality products." },
+  { year: "2018", title: "Online Expansion", description: "Launched our e-commerce platform to serve customers nationwide." },
+  { year: "2020", title: "Brand Partnerships", description: "Established authorized partnerships with Apple, Samsung, and Sony." },
+  { year: "2022", title: "Multiple Locations", description: "Expanded to serve customers in both Kathmandu and Pokhara." },
+  { year: "2024", title: "50K+ Customers", description: "Reached a milestone of serving over 50,000 satisfied customers." },
+];
+
+const leadership = [
+  { name: "Sagar Dhakal",  role: "Chairperson",        initials: "SD", description: "Leading Joy Store with vision and strategic direction for sustainable growth." },
+  { name: "Guru Sharma",   role: "Managing Director",  initials: "GS", description: "Managing daily operations and ensuring exceptional customer service standards." },
+  { name: "Rajesh Thapa",  role: "Head of Sales",      initials: "RT", description: "Expert in customer relations and product expertise across all categories." },
+  { name: "Anita Shrestha",role: "Operations Manager", initials: "AS", description: "Managing logistics and ensuring smooth operations across all locations." },
+];
+
+// ── Component ──────────────────────────────────────────────────────────────
 const AboutUs = () => {
   const navigate = useNavigate();
-  
-  const [counters, setCounters] = useState({
-    customers: 0,
-    products: 0,
-    years: 0,
-    satisfaction: 0
-  });
 
-  // Animate counters
+  const c1 = useCounter(50000);
+  const c2 = useCounter(10000);
+  const c3 = useCounter(8);
+  const c4 = useCounter(98);
+
+  // Trigger counters when stats row enters viewport
+  const statsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const targetValues = {
-      customers: 50000,
-      products: 10000,
-      years: 8,
-      satisfaction: 98
-    };
-
-    const duration = 2000;
-    const steps = 60;
-    const stepDuration = duration / steps;
-
-    const intervals = Object.keys(targetValues).map((key) => {
-      const target = targetValues[key as keyof typeof targetValues];
-      const increment = target / steps;
-      let current = 0;
-
-      return setInterval(() => {
-        current += increment;
-        if (current >= target) {
-          current = target;
-          clearInterval(intervals.find(i => i === interval));
-        }
-        setCounters(prev => ({
-          ...prev,
-          [key]: Math.floor(current)
-        }));
-      }, stepDuration);
-    });
-
-    return () => intervals.forEach(clearInterval);
+    const el = statsRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { c1.start(); c2.start(); c3.start(); c4.start(); } },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const breadcrumbItems = [
-    { name: "Home", href: "/" },
-    { name: "About Us", href: "/about-us", current: true },
-  ];
-
-  const values = [
-    {
-      icon: ShieldCheckIcon,
-      title: "Quality Assurance",
-      description: "We ensure every product meets the highest quality standards before reaching our customers.",
-      color: "text-blue-600"
-    },
-    {
-      icon: TruckIcon,
-      title: "Fast Delivery",
-      description: "Quick and reliable delivery service to get your products to you as soon as possible.",
-      color: "text-green-600"
-    },
-    {
-      icon: HeartIcon,
-      title: "Customer First",
-      description: "Our customers are at the heart of everything we do. Your satisfaction is our priority.",
-      color: "text-red-600"
-    },
-    {
-      icon: UsersIcon,
-      title: "Expert Team",
-      description: "Our knowledgeable team is here to help you find the perfect products for your needs.",
-      color: "text-purple-600"
-    }
-  ];
-
-  const milestones = [
-    {
-      year: "2016",
-      title: "Company Founded",
-      description: "Started as a small electronics retailer with a vision to provide quality products."
-    },
-    {
-      year: "2018",
-      title: "Online Expansion",
-      description: "Launched our e-commerce platform to serve customers nationwide."
-    },
-    {
-      year: "2020",
-      title: "Brand Partnerships",
-      description: "Established partnerships with major brands like Apple, Samsung, and Sony."
-    },
-    {
-      year: "2022",
-      title: "Multiple Locations",
-      description: "Expanded to serve customers in both Kathmandu and Pokhara."
-    },
-    {
-      year: "2024",
-      title: "50K+ Customers",
-      description: "Reached a milestone of serving over 50,000 satisfied customers."
-    }
-  ];
-
-  const leadership = [
-    {
-      name: "Sagar Dhakal",
-      role: "Chairperson",
-      image: "/team-member-1.jpg",
-      description: "Leading Joy Store with vision and strategic direction for sustainable growth."
-    },
-    {
-      name: "Guru Sharma",
-      role: "Managing Director",
-      image: "/team-member-2.jpg",
-      description: "Managing daily operations and ensuring exceptional customer service standards."
-    },
-    {
-      name: "Rajesh Thapa",
-      role: "Head of Sales",
-      image: "/team-member-3.jpg",
-      description: "Expert in customer relations and product expertise across all categories."
-    },
-    {
-      name: "Anita Shrestha",
-      role: "Operations Manager",
-      image: "/team-member-4.jpg",
-      description: "Managing logistics and ensuring smooth operations across all locations."
-    }
-  ];
-
-  const socialLinks = [
-    {
-      name: "Facebook",
-      icon: FacebookIcon,
-      url: "https://facebook.com/joystorenepal",
-      color: "text-blue-600 hover:text-blue-700"
-    },
-    {
-      name: "Instagram",
-      icon: InstagramIcon,
-      url: "https://www.instagram.com/joy_store_nepal?igsh=MW9uMTVxeGJlam9mZw==",
-      color: "text-pink-600 hover:text-pink-700"
-    },
-    {
-      name: "WhatsApp",
-      icon: MessageCircleIcon,
-      url: "https://wa.me/9779851343371",
-      color: "text-green-600 hover:text-green-700"
-    }
+  const stats = [
+    { counter: c1, suffix: "+", label: "Happy Customers" },
+    { counter: c2, suffix: "+", label: "Products Available" },
+    { counter: c3, suffix: "", label: "Years Experience" },
+    { counter: c4, suffix: "%", label: "Satisfaction Rate" },
   ];
 
   return (
     <div>
       <PageLayout>
-        <Breadcrumb items={breadcrumbItems} />
-        
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50">
-          {/* Hero Section */}
-          <section className="relative py-20 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-600/10 to-blue-600/10"></div>
-            <div className="container mx-auto px-4 relative z-10">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center max-w-4xl mx-auto"
-              >
-                <div className="flex items-center justify-center mb-6">
-                  <AwardIcon className="w-12 h-12 text-red-600 mr-4" />
-                  <span className="text-red-600 font-semibold text-xl">About Joy Store</span>
-                </div>
-                
-                <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                  Your Trusted
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-blue-600"> Electronics </span>
-                  Partner
+        <Breadcrumb
+          bgColor="black"
+          items={[
+            { name: "Home", href: "/" },
+            { name: "About Us", href: "/about-us", current: true },
+          ]}
+        />
+
+        <div className="min-h-screen bg-white">
+
+          {/* ── Hero ── */}
+          <section className="bg-gray-900">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+              <div className="max-w-3xl">
+                <span className="inline-flex items-center gap-2 bg-white/10 text-white/70 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-widest mb-6">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                  About Joy Store
+                </span>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6">
+                  Nepal's Trusted<br />
+                  <span className="text-red-500">Electronics Partner</span>
                 </h1>
-                
-                <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                  For over a decade, Joy Store has been Nepal's premier destination for quality electronics, 
-                  smartphones, and lifestyle products. We're committed to bringing you the latest technology 
-                  with exceptional service and unbeatable prices.
+                <p className="text-white/50 text-lg leading-relaxed mb-10 max-w-xl">
+                  Since 2016, Joy Store has been bringing authentic electronics, smartphones, and lifestyle products to customers across Nepal — with certified service and unbeatable after-sales support.
                 </p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/products')}
-                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => navigate("/products")}
+                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold px-7 py-3 rounded-xl text-sm transition-all"
                   >
-                    Explore Products
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/contact-us')}
-                    className="bg-white text-gray-900 px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
+                    Explore Products <ArrowRightIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => navigate("/contact-us")}
+                    className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-7 py-3 rounded-xl text-sm transition-all"
                   >
                     Contact Us
-                  </motion.button>
+                  </button>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </section>
 
-          {/* Stats Section */}
-          <section className="py-16 bg-white/50 backdrop-blur-sm">
-            <div className="container mx-auto px-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-                {[
-                  { key: "customers", label: "Happy Customers", suffix: "+" },
-                  { key: "products", label: "Products Available", suffix: "+" },
-                  { key: "years", label: "Years Experience", suffix: "" },
-                  { key: "satisfaction", label: "Satisfaction Rate", suffix: "%" }
-                ].map((stat, index) => (
-                  <motion.div
-                    key={stat.key}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="text-center"
-                  >
-                    <div className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-blue-600 mb-2">
-                      {counters[stat.key as keyof typeof counters]}{stat.suffix}
+          {/* ── Stats ── */}
+          <div ref={statsRef} className="border-y border-gray-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-gray-100">
+                {stats.map((s, i) => (
+                  <div key={i} className="px-8 py-10 text-center">
+                    <div className="text-3xl sm:text-4xl font-extrabold text-gray-900 tabular-nums">
+                      {s.counter.value.toLocaleString()}{s.suffix}
                     </div>
-                    <div className="text-gray-600 font-medium">{stat.label}</div>
-                  </motion.div>
+                    <div className="text-sm text-gray-500 font-medium mt-1">{s.label}</div>
+                  </div>
                 ))}
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* Our Story Section */}
-          <section className="py-20">
-            <div className="container mx-auto px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-center mb-16"
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Story</h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  What started as a small electronics shop has grown into Nepal's most trusted technology retailer, 
-                  serving thousands of customers with premium products and exceptional service.
+          {/* ── Our Story ── */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-24">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
+              <div>
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-1 h-6 bg-red-600 rounded-full" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Our Story</span>
+                </div>
+                <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 mb-5 leading-tight">
+                  Building Trust Through Quality
+                </h2>
+                <p className="text-gray-500 leading-relaxed mb-4">
+                  Founded in 2016, Joy Store began with a simple mission: give Nepal access to the world's best electronics at fair prices. What set us apart was our commitment to authenticity, manufacturer warranty, and post-sale support.
                 </p>
-              </motion.div>
-
-              <div className="grid lg:grid-cols-2 gap-12 items-center">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className="space-y-6"
-                >
-                  <h3 className="text-3xl font-bold text-gray-900 mb-6">
-                    Building Trust Through Quality
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Founded in 2016, Joy Store began with a simple mission: to provide Nepal with access to 
-                    the world's best electronics at fair prices. What set us apart was our commitment to 
-                    authenticity, warranty, and after-sales service.
-                  </p>
-                  <p className="text-gray-600 leading-relaxed">
-                    Today, we're proud to be authorized retailers for major brands including Apple, Samsung, 
-                    Sony, and many others. Our team of experts ensures every product is genuine, and our 
-                    customer service team is always ready to help.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    {[
-                      "100% Authentic Products",
-                      "Official Brand Warranties",
-                      "Expert Technical Support",
-                      "Nationwide Delivery"
-                    ].map((feature, index) => (
-                      <motion.div
-                        key={feature}
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center"
-                      >
-                        <CheckCircleIcon className="w-5 h-5 text-green-600 mr-3" />
-                        <span className="text-gray-700">{feature}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className="relative"
-                >
-                  <div className="bg-gradient-to-br from-red-100 to-blue-100 rounded-2xl p-8 h-96 flex items-center justify-center">
-                    <div className="text-6xl">🏪</div>
-                  </div>
-                  <div className="absolute -bottom-6 -right-6 bg-white rounded-xl p-4 shadow-xl">
-                    <div className="flex items-center space-x-2">
-                      <StarIcon className="w-5 h-5 text-yellow-500 fill-current" />
-                      <span className="font-semibold">4.9/5 Rating</span>
-                    </div>
-                  </div>
-                </motion.div>
+                <p className="text-gray-500 leading-relaxed mb-8">
+                  Today we're authorized retailers for Apple, Samsung, Sony, and many others. Every product is genuine — our expert team ensures that, and our support team backs it up.
+                </p>
+                <ul className="space-y-3">
+                  {["100% Authentic Products", "Official Brand Warranties", "Expert Technical Support", "Nationwide Delivery"].map((f) => (
+                    <li key={f} className="flex items-center gap-3 text-sm text-gray-700">
+                      <CheckCircleIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-          </section>
 
-          {/* Values Section */}
-          <section className="py-20 bg-white/50 backdrop-blur-sm">
-            <div className="container mx-auto px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-center mb-16"
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Values</h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  These core values guide everything we do and shape our relationship with customers, 
-                  partners, and the community.
-                </p>
-              </motion.div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {values.map((value, index) => (
-                  <motion.div
-                    key={value.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -5 }}
-                    className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 text-center"
-                  >
-                    <div className={`inline-flex items-center justify-center w-16 h-16 ${value.color} bg-opacity-10 rounded-2xl mb-6`}>
-                      <value.icon className={`w-8 h-8 ${value.color}`} />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">{value.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{value.description}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Timeline Section */}
-          <section className="py-20">
-            <div className="container mx-auto px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-center mb-16"
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Journey</h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  From a small startup to Nepal's leading electronics retailer - 
-                  here are the key milestones in our journey.
-                </p>
-              </motion.div>
-
+              {/* Visual block */}
               <div className="relative">
-                <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-red-600 to-blue-600 rounded-full"></div>
-                
-                <div className="space-y-12">
-                  {milestones.map((milestone, index) => (
-                    <motion.div
-                      key={milestone.year}
-                      initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.2 }}
-                      className={`flex items-center ${
-                        index % 2 === 0 ? "justify-start" : "justify-end"
-                      }`}
+                <div className="bg-gray-900 rounded-2xl aspect-[4/3] flex items-end p-8">
+                  <div className="space-y-1">
+                    <p className="text-white/40 text-xs uppercase tracking-widest">Established</p>
+                    <p className="text-white text-5xl font-extrabold">2016</p>
+                    <p className="text-white/60 text-sm">Kathmandu, Nepal</p>
+                  </div>
+                </div>
+                <div className="absolute -bottom-5 -right-5 bg-white border border-gray-100 rounded-xl px-5 py-3 shadow-lg flex items-center gap-2">
+                  <StarIcon className="w-4 h-4 text-yellow-500 fill-current" />
+                  <span className="text-sm font-semibold text-gray-900">4.9 / 5 Rating</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Values ── */}
+          <section className="bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-1 h-6 bg-red-600 rounded-full" />
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Our Values</span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-10">What We Stand For</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {values.map((v) => (
+                  <div key={v.title} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mb-4">
+                      <v.icon className="w-5 h-5 text-red-600" />
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 mb-2">{v.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{v.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── Timeline ── */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-1 h-6 bg-red-600 rounded-full" />
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Our Journey</span>
+            </div>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-12">Key Milestones</h2>
+
+            <div className="relative">
+              {/* Vertical line — hidden on mobile */}
+              <div className="hidden md:block absolute left-[120px] top-0 bottom-0 w-px bg-gray-200" />
+
+              <div className="space-y-8">
+                {milestones.map((m) => (
+                  <div key={m.year} className="flex gap-8 items-start">
+                    {/* Year */}
+                    <div className="hidden md:flex flex-col items-end w-[120px] flex-shrink-0 pt-1">
+                      <span className="text-base font-extrabold text-red-600">{m.year}</span>
+                    </div>
+                    {/* Dot */}
+                    <div className="hidden md:flex items-center justify-center flex-shrink-0 w-3 mt-2">
+                      <div className="w-3 h-3 rounded-full bg-red-600 ring-4 ring-red-100" />
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                      <span className="md:hidden text-xs font-bold text-red-600 mb-1 block">{m.year}</span>
+                      <h3 className="text-sm font-bold text-gray-900 mb-1">{m.title}</h3>
+                      <p className="text-sm text-gray-500">{m.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── Leadership ── */}
+          <section className="bg-gray-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-1 h-6 bg-red-600 rounded-full" />
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Leadership</span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-gray-900 mb-10">Our Team</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {leadership.map((m) => (
+                  <div key={m.name} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-center">
+                    <div className="w-16 h-16 bg-gray-900 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">{m.initials}</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">{m.name}</h3>
+                    <p className="text-xs text-red-600 font-semibold mt-0.5 mb-3">{m.role}</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">{m.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── Visit Us ── */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-1 h-6 bg-red-600 rounded-full" />
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Visit Us</span>
+            </div>
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-10">Find Our Stores</h2>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {[
+                { icon: MapPinIcon, title: "Kathmandu", lines: ["Tamrakar Complex Shop 9", "Newroad, Kathmandu"] },
+                { icon: MapPinIcon, title: "Pokhara",   lines: ["Mahendrapool", "Infront of Sita Bhawan"] },
+                { icon: ClockIcon,  title: "Store Hours",lines: ["Mon – Sat: 10 AM – 8 PM", "Sunday: 11 AM – 6 PM"] },
+              ].map((info) => (
+                <div key={info.title} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mb-4">
+                    <info.icon className="w-5 h-5 text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">{info.title}</h3>
+                  {info.lines.map((l) => <p key={l} className="text-sm text-gray-500">{l}</p>)}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-6">
+              {/* Contact */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <PhoneIcon className="w-4 h-4 text-red-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Contact Numbers</h3>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: "Kathmandu", href: "tel:9851343371", display: "9851343371" },
+                    { label: "Pokhara",   href: "tel:9856060163", display: "985-6060163" },
+                    { label: "Email",     href: "mailto:support@joystore.com", display: "support@joystore.com" },
+                  ].map((c) => (
+                    <div key={c.label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <span className="text-xs text-gray-400 font-medium">{c.label}</span>
+                      <a href={c.href} className="text-xs font-semibold text-gray-900 hover:text-red-600 transition-colors">{c.display}</a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Social */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <UsersIcon className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Follow Us</h3>
+                    <p className="text-xs text-gray-400">Stay updated on deals and new arrivals</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { icon: FacebookIcon,    label: "Facebook",  url: "https://www.facebook.com/share/1936QwaPGq/?mibextid=wwXIfr" },
+                    { icon: InstagramIcon,   label: "Instagram", url: "https://www.instagram.com/joy_store_nepal?igsh=MW9uMTVxeGJlam9mZw==" },
+                    { icon: MessageCircleIcon,label:"WhatsApp",  url: "https://wa.me/9779851343371" },
+                  ].map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
                     >
-                      <div className={`w-1/2 ${index % 2 === 0 ? "pr-8" : "pl-8"}`}>
-                        <div className="bg-white rounded-2xl p-6 shadow-lg">
-                          <div className="text-2xl font-bold text-red-600 mb-2">{milestone.year}</div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">{milestone.title}</h3>
-                          <p className="text-gray-600">{milestone.description}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-red-600 rounded-full border-4 border-white shadow-lg"></div>
-                    </motion.div>
+                      <s.icon className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-900">{s.label}</span>
+                      <ArrowRightIcon className="w-3 h-3 text-gray-400 ml-auto" />
+                    </a>
                   ))}
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Leadership Team Section */}
-          <section className="py-20 bg-white/50 backdrop-blur-sm">
-            <div className="container mx-auto px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-center mb-16"
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Leadership Team</h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  The passionate individuals behind Joy Store who work tirelessly to bring you 
-                  the best products and service experience.
-                </p>
-              </motion.div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {leadership.map((member, index) => (
-                  <motion.div
-                    key={member.name}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ y: -5 }}
-                    className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-center"
-                  >
-                    <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl">
-                      👨‍💼
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{member.name}</h3>
-                    <div className="text-red-600 font-medium mb-3">{member.role}</div>
-                    <p className="text-gray-600 text-sm">{member.description}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Contact Info Section */}
-          <section className="py-20">
-            <div className="container mx-auto px-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-center mb-16"
-              >
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">Visit Our Stores</h2>
-                <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                  Experience our products firsthand at our physical locations or contact us for any queries.
-                </p>
-              </motion.div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-                {[
-                  {
-                    icon: MapPinIcon,
-                    title: "Kathmandu Store",
-                    details: ["Tamrakar Complex Shop 9", "Newroad, Kathmandu", "Nepal"]
-                  },
-                  {
-                    icon: MapPinIcon,
-                    title: "Pokhara Store", 
-                    details: ["Mahendrapool", "Infront of Sita Bhawan", "Pokhara, Nepal"]
-                  },
-                  {
-                    icon: ClockIcon,
-                    title: "Store Hours",
-                    details: ["Mon - Sat: 10 AM - 8 PM", "Sunday: 11 AM - 6 PM", "Holidays: Closed"]
-                  }
-                ].map((info, index) => (
-                  <motion.div
-                    key={info.title}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white rounded-2xl p-8 shadow-lg text-center"
-                  >
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-2xl mb-6">
-                      <info.icon className="w-8 h-8 text-red-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">{info.title}</h3>
-                    <div className="space-y-2">
-                      {info.details.map((detail, idx) => (
-                        <div key={idx} className="text-gray-600">{detail}</div>
-                      ))}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Contact Numbers & Social Media */}
-              <div className="grid md:grid-cols-2 gap-8">
-                {/* Phone Numbers */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-2xl p-8 shadow-lg"
+          {/* ── CTA ── */}
+          <section className="bg-gray-900">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+                Ready to Experience the Joy Store Difference?
+              </h2>
+              <p className="text-white/50 text-base mb-8 max-w-xl mx-auto">
+                Join thousands of satisfied customers who trust us for their electronics needs.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => navigate("/products")}
+                  className="bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all"
                 >
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-2xl mb-4">
-                      <PhoneIcon className="w-8 h-8 text-green-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900">Contact Numbers</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Kathmandu:</span>
-                      <a 
-                        href="tel:9851343371" 
-                        className="font-semibold text-gray-900 hover:text-green-600 transition-colors"
-                      >
-                        9851343371
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Pokhara:</span>
-                      <a 
-                        href="tel:985-6060163" 
-                        className="font-semibold text-gray-900 hover:text-green-600 transition-colors"
-                      >
-                        985-6060163
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Email:</span>
-                      <a 
-                        href="mailto:support@joystore.com" 
-                        className="font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-                      >
-                        support@joystore.com
-                      </a>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Social Media */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-2xl p-8 shadow-lg"
+                  Shop Now
+                </button>
+                <button
+                  onClick={() => navigate("/contact-us")}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all"
                 >
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-4">
-                      <UsersIcon className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900">Follow Us</h3>
-                    <p className="text-gray-600 text-sm mt-2">Stay connected for latest updates and offers</p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {socialLinks.map((social, index) => (
-                      <motion.a
-                        key={social.name}
-                        href={social.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ scale: 1.02 }}
-                        className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-300"
-                      >
-                        <social.icon className={`w-6 h-6 ${social.color} mr-4`} />
-                        <span className="font-semibold text-gray-900">{social.name}</span>
-                      </motion.a>
-                    ))}
-                  </div>
-                </motion.div>
+                  Contact Us
+                </button>
               </div>
             </div>
           </section>
 
-          {/* CTA Section */}
-          <section className="py-20 bg-gradient-to-r from-red-600 to-blue-600">
-            <div className="container mx-auto px-4 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-              >
-                <h2 className="text-4xl font-bold text-white mb-6">
-                  Ready to Experience the Joy Store Difference?
-                </h2>
-                <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                  Join thousands of satisfied customers who trust us for their electronics needs.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/products')}
-                    className="bg-white text-red-600 px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    Shop Now
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/contact-us')}
-                    className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white hover:text-red-600 transition-all duration-300"
-                  >
-                    Contact Us
-                  </motion.button>
-                </div>
-              </motion.div>
-            </div>
-          </section>
         </div>
       </PageLayout>
-      
-      {/* Footer Section */}
-      <FooterSection />
+
+      <PremiumFooter />
     </div>
   );
 };
