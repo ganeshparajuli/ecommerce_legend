@@ -26,29 +26,30 @@ export const PopularBrands = () => {
             Our Brands
           </span>
 
-          {loading ? (
-            Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="w-20 h-8 bg-gray-100 rounded animate-pulse flex-shrink-0" />
-            ))
-          ) : (
-            list.map((brand: any) => (
-              <Link
-                key={brand.id}
-                to={`/products?brand=${brand.slug || brand.name?.toLowerCase().replace(/\s+/g, "-")}`}
-                className="flex-shrink-0 group"
-                title={brand.name}
-              >
-                <div className="h-8 flex items-center justify-center px-2 opacity-50 hover:opacity-100 transition-opacity duration-200">
-                  <BrandImage
-                    src={brand.image}
-                    alt={brand.name}
-                    className="h-7 max-w-[80px] object-contain"
-                    fallbackText={brand.name?.charAt(0)}
-                  />
-                </div>
-              </Link>
-            ))
-          )}
+          {loading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-20 h-8 bg-gray-100 rounded animate-pulse flex-shrink-0"
+                />
+              ))
+            : list.map((brand: any) => (
+                <Link
+                  key={brand.id}
+                  to={`/products?brand=${brand.slug || brand.name?.toLowerCase().replace(/\s+/g, "-")}`}
+                  className="flex-shrink-0 group"
+                  title={brand.name}
+                >
+                  <div className="h-8 flex items-center justify-center px-2 opacity-90 hover:opacity-100 transition-opacity duration-200">
+                    <BrandImage
+                      src={brand.image}
+                      alt={brand.name}
+                      className="h-7 max-w-[80px] object-contain"
+                      fallbackText={brand.name?.charAt(0)}
+                    />
+                  </div>
+                </Link>
+              ))}
 
           {/* View all */}
           {list.length > 0 && (

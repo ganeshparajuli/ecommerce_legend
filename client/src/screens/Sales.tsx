@@ -144,6 +144,81 @@ interface SaleProductsResponse {
   };
 }
 
+const resolvePrice = (p: Record<string, unknown>): number => {
+  // defaultVariant from controller getter
+  const dv = p.defaultVariant as Record<string, unknown> | null | undefined;
+  const dvPrice = parseFloat(String(dv?.price ?? 0));
+  if (dvPrice > 0) return dvPrice;
+
+  // priceRange fallback
+  const pr = p.priceRange as Record<string, unknown> | null | undefined;
+  const prMin = parseFloat(String(pr?.min ?? 0));
+  if (prMin > 0) return prMin;
+
+  // variants[0] fallback in case defaultVariant is null
+  const variants = p.variants as Array<Record<string, unknown>> | null | undefined;
+  if (Array.isArray(variants) && variants.length > 0) {
+    const vPrice = parseFloat(String(variants[0].price ?? 0));
+    if (vPrice > 0) return vPrice;
+  }
+
+  // Flat-price fallback for any other schema
+  return parseFloat(String(p.actualPrice ?? p.actual_price ?? p.finalPrice ?? p.final_price ?? p.price ?? p.discountPrice ?? 0)) || 0;
+};
+
+const resolveImage = (p: Record<string, unknown>): string | null => {
+  // Sequelize association: images: [{ url }]
+  const imgs = p.images as Array<Record<string, unknown>> | null | undefined;
+  if (Array.isArray(imgs) && imgs.length > 0) return String(imgs[0].url ?? "");
+  // Flat string fallback
+  const flat = p.image ?? p.product_images ?? p.thumbnail ?? null;
+  return flat ? String(flat) : null;
+};
+
+const resolveComparePrice = (p: Record<string, unknown>): number => {
+  const dv = p.defaultVariant as Record<string, unknown> | null | undefined;
+  const cap = parseFloat(String(dv?.compareAtPrice ?? 0));
+  if (cap > 0) return cap;
+  const variants = p.variants as Array<Record<string, unknown>> | null | undefined;
+  if (Array.isArray(variants) && variants.length > 0) {
+    const vc = parseFloat(String(variants[0].compareAtPrice ?? 0));
+    if (vc > 0) return vc;
+  }
+  return 0;
+};
+
+const resolveStock = (p: Record<string, unknown>): number => {
+  const dv = p.defaultVariant as Record<string, unknown> | null | undefined;
+  if (dv?.quantity !== undefined) return Number(dv.quantity);
+  const variants = p.variants as Array<Record<string, unknown>> | null | undefined;
+  if (Array.isArray(variants)) return variants.reduce((sum, v) => sum + Number(v.quantity ?? 0), 0);
+  return Number(p.stock ?? p.quantity ?? 0);
+};
+
+const mapProductToSaleProduct = (product: Record<string, unknown>, sale: Sale): SaleProduct => {
+  const variantPrice = resolvePrice(product);         // actual selling price
+  const comparePrice = resolveComparePrice(product);  // crossed-out original price
+  // originalPrice = compareAtPrice if available, else variantPrice (so we can apply sale discount to it)
+  const originalPrice = comparePrice > 0 ? comparePrice : variantPrice;
+  const discountAmount = sale.discountType === "percentage"
+    ? (variantPrice * sale.discountValue) / 100
+    : sale.discountValue;
+  const salePrice = Math.max(0, variantPrice - discountAmount);
+  const discount = sale.discountType === "percentage"
+    ? sale.discountValue
+    : variantPrice > 0 ? Math.round((discountAmount / variantPrice) * 100) : 0;
+  const stock = resolveStock(product);
+  return {
+    ...(product as unknown as Product),
+    image: resolveImage(product) as string,
+    stock,
+    quantity: stock,
+    originalPrice,
+    salePrice,
+    discount,
+  };
+};
+
 const Sales: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -349,62 +424,17 @@ const Sales: React.FC = () => {
           if (typeof productData[0] === "object" && productData[0] !== null) {
             // If we have complete product objects
             console.log("Processing complete product objects");
-            discountedProducts = (productData as Product[]).map((product) => {
-              const originalPrice =
-                parseFloat(String(product.finalPrice)) ||
-                parseFloat(String(product.discountPrice)) ||
-                0;
-
-              // Calculate discount
-              const discountAmount =
-                currentActiveSale.discountType === "percentage"
-                  ? (originalPrice * currentActiveSale.discountValue) / 100
-                  : currentActiveSale.discountValue;
-
-              const salePrice = Math.max(0, originalPrice - discountAmount);
-
-              return {
-                ...product,
-                originalPrice,
-                salePrice,
-                discount:
-                  currentActiveSale.discountType === "percentage"
-                    ? currentActiveSale.discountValue
-                    : Math.round((discountAmount / originalPrice) * 100) || 0,
-              };
-            });
+            discountedProducts = (productData as unknown as Record<string, unknown>[]).map(
+              (product) => mapProductToSaleProduct(product, currentActiveSale)
+            );
           } else {
             // If we have product IDs
             console.log("Processing product IDs:", productData);
             discountedProducts = (productData as (string | number)[])
               .map((productId) => {
-                // Find matching product in all products
-                const product = allProducts.find((p) => p.id === productId);
-
+                const product = (allProducts as any[]).find((p) => p.id === productId);
                 if (!product) return null;
-
-                const originalPrice =
-                  parseFloat(String(product.finalPrice)) ||
-                  parseFloat(String(product.discountPrice)) ||
-                  0;
-
-                // Calculate discount
-                const discountAmount =
-                  currentActiveSale.discountType === "percentage"
-                    ? (originalPrice * currentActiveSale.discountValue) / 100
-                    : currentActiveSale.discountValue;
-
-                const salePrice = Math.max(0, originalPrice - discountAmount);
-
-                return {
-                  ...product,
-                  originalPrice,
-                  salePrice,
-                  discount:
-                    currentActiveSale.discountType === "percentage"
-                      ? currentActiveSale.discountValue
-                      : Math.round((discountAmount / originalPrice) * 100) || 0,
-                };
+                return mapProductToSaleProduct(product, currentActiveSale);
               })
               .filter((product): product is SaleProduct => product !== null);
           }
@@ -422,32 +452,9 @@ const Sales: React.FC = () => {
         // Fallback approach if no products returned but sale has products
         if (currentActiveSale.productCount > 0) {
           console.log("Using random products as fallback");
-          const randomProducts: SaleProduct[] = allProducts
+          const randomProducts: SaleProduct[] = (allProducts as any[])
             .slice(0, currentActiveSale.productCount)
-            .map((product) => {
-              const originalPrice =
-                parseFloat(String(product.finalPrice)) ||
-                parseFloat(String(product.discountPrice)) ||
-                0;
-
-              // Calculate discount
-              const discountAmount =
-                currentActiveSale.discountType === "percentage"
-                  ? (originalPrice * currentActiveSale.discountValue) / 100
-                  : currentActiveSale.discountValue;
-
-              const salePrice = Math.max(0, originalPrice - discountAmount);
-
-              return {
-                ...product,
-                originalPrice,
-                salePrice,
-                discount:
-                  currentActiveSale.discountType === "percentage"
-                    ? currentActiveSale.discountValue
-                    : Math.round((discountAmount / originalPrice) * 100) || 0,
-              };
-            });
+            .map((product) => mapProductToSaleProduct(product, currentActiveSale));
 
           setSaleProducts(randomProducts);
         } else {
@@ -655,152 +662,43 @@ const Sales: React.FC = () => {
     if (!saleGifts.length && !productGifts.length) return null;
 
     return (
-      <div className="bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 border-2 border-pink-200 rounded-3xl p-8 mb-12 shadow-lg">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center gap-3 mb-4">
-            <div className="text-4xl animate-bounce">🎁</div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              FREE GIFTS AVAILABLE!
-            </h2>
-            <div className="text-4xl animate-bounce">🎁</div>
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="w-1 h-6 bg-amber-500 rounded-full" />
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Free Gifts Available</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Add qualifying items to your cart to unlock</p>
           </div>
-          <p className="text-lg text-gray-600">
-            Add qualifying items to your cart and get these amazing gifts for
-            FREE!
-          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Sale-Level Gifts */}
-          {saleGifts.length > 0 && (
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-pink-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full text-white">
-                  <svg
-                    className="w-6 h-6"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-800">
-                  Spend & Get Gifts
-                </h3>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {saleGifts.map((gift, index) => (
+            <div key={gift.id || index} className="flex items-center gap-3 bg-white border border-amber-200 rounded-xl p-3">
+              {gift.giftProductImage && (
+                <ProductImage src={gift.giftProductImage} alt={gift.giftProductName} className="w-12 h-12 object-contain rounded-lg border border-gray-100 flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{gift.giftProductName} <span className="text-xs font-normal text-gray-500">×{gift.giftQuantity}</span></p>
+                <p className="text-xs text-amber-700 font-medium mt-0.5">Spend {formatPrice(gift.minPurchaseAmount)}+{gift.minQuantity > 1 ? ` with ${gift.minQuantity}+ items` : ""}</p>
+                <p className="text-[10px] text-gray-400">Max {gift.maxGiftsPerOrder} per order</p>
               </div>
-              <div className="space-y-4">
-                {saleGifts.map((gift, index) => (
-                  <div
-                    key={gift.id || index}
-                    className="bg-pink-50 rounded-xl p-4 border border-pink-200"
-                  >
-                    <div className="flex items-center gap-4">
-                      {gift.giftProductImage && (
-                        <ProductImage
-                          src={gift.giftProductImage}
-                          alt={gift.giftProductName}
-                          className="w-16 h-16 object-cover rounded-lg border-2 border-pink-200"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <div className="font-bold text-lg text-gray-800 mb-1">
-                          {gift.giftProductName}
-                          <span className="ml-2 px-2 py-1 bg-pink-200 text-pink-800 text-sm rounded-full">
-                            x{gift.giftQuantity}
-                          </span>
-                        </div>
-                        <div className="text-pink-600 font-semibold mb-2">
-                          💰 Spend {formatPrice(gift.minPurchaseAmount)}+
-                          {gift.minQuantity > 1 &&
-                            ` with ${gift.minQuantity}+ items`}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Max {gift.maxGiftsPerOrder} gift(s) per order
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">
-                          FREE
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          when qualified
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <span className="text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded flex-shrink-0">FREE</span>
             </div>
-          )}
+          ))}
 
-          {/* Product-Specific Gifts */}
-          {productGifts.length > 0 && (
-            <div className="bg-white rounded-2xl p-6 shadow-md border border-purple-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full text-white">
-                  <svg
-                    className="w-6 h-6"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-800">
-                  Buy & Get Gifts
-                </h3>
+          {productGifts.map((gift, index) => (
+            <div key={gift.id || index} className="flex items-center gap-3 bg-white border border-amber-200 rounded-xl p-3">
+              {gift.giftProductImage && (
+                <ProductImage src={gift.giftProductImage} alt={gift.giftProductName} className="w-12 h-12 object-contain rounded-lg border border-gray-100 flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{gift.giftProductName} <span className="text-xs font-normal text-gray-500">×{gift.giftQuantity}</span></p>
+                <p className="text-xs text-amber-700 font-medium mt-0.5">Buy {gift.minMainQuantity}× {gift.mainProductName}</p>
+                <p className="text-[10px] text-gray-400">Max {gift.maxGiftsPerOrder} per order</p>
               </div>
-              <div className="space-y-4">
-                {productGifts.map((gift, index) => (
-                  <div
-                    key={gift.id || index}
-                    className="bg-purple-50 rounded-xl p-4 border border-purple-200"
-                  >
-                    <div className="flex items-center gap-4">
-                      {gift.giftProductImage && (
-                        <ProductImage
-                          src={gift.giftProductImage}
-                          alt={gift.giftProductName}
-                          className="w-16 h-16 object-cover rounded-lg border-2 border-purple-200"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <div className="font-bold text-lg text-gray-800 mb-1">
-                          {gift.giftProductName}
-                          <span className="ml-2 px-2 py-1 bg-purple-200 text-purple-800 text-sm rounded-full">
-                            x{gift.giftQuantity}
-                          </span>
-                        </div>
-                        <div className="text-purple-600 font-semibold mb-2">
-                          🛒 Buy {gift.minMainQuantity}x {gift.mainProductName}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Max {gift.maxGiftsPerOrder} gift(s) per order
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">
-                          FREE
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          when qualified
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <span className="text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded flex-shrink-0">FREE</span>
             </div>
-          )}
-        </div>
-
-        {/* Call to Action */}
-        <div className="text-center mt-8">
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full font-semibold shadow-lg">
-            <span>🛍️</span>
-            <span>Start Shopping to Unlock Your Gifts!</span>
-            <span>✨</span>
-          </div>
+          ))}
         </div>
       </div>
     );
@@ -810,46 +708,25 @@ const Sales: React.FC = () => {
     if (!applicableGifts || applicableGifts.length === 0) return null;
 
     return (
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 mb-8 shadow-lg">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="text-3xl animate-pulse">🎉</div>
-          <h3 className="text-2xl font-bold text-green-800">
-            Congratulations! Your Free Gifts:
-          </h3>
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <h3 className="text-sm font-bold text-green-800">Your Free Gifts</h3>
         </div>
-        <div className="grid gap-4">
+        <div className="space-y-2">
           {applicableGifts.map((gift, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-4 bg-white rounded-xl p-4 shadow-sm border border-green-200"
-            >
+            <div key={index} className="flex items-center gap-3 bg-white border border-green-200 rounded-xl p-3">
               {gift.giftProductImage && (
-                <ProductImage
-                  src={gift.giftProductImage}
-                  alt={gift.giftProductName}
-                  className="w-16 h-16 object-cover rounded-lg border-2 border-green-300"
-                />
+                <ProductImage src={gift.giftProductImage} alt={gift.giftProductName} className="w-10 h-10 object-contain rounded-lg border border-gray-100 flex-shrink-0" />
               )}
-              <div className="flex-1">
-                <div className="font-bold text-xl text-gray-800 mb-1">
-                  {gift.giftProductName}
-                  <span className="ml-2 px-3 py-1 bg-green-200 text-green-800 text-sm rounded-full">
-                    x{gift.giftQuantity}
-                  </span>
-                </div>
-                <div className="text-green-600 font-medium">{gift.reason}</div>
-                {gift.value && (
-                  <div className="text-sm text-gray-600">
-                    Value: {formatPrice(gift.value)}
-                  </div>
-                )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{gift.giftProductName} <span className="text-xs font-normal text-gray-500">×{gift.giftQuantity}</span></p>
+                <p className="text-xs text-green-600 mt-0.5">{gift.reason}</p>
+                {gift.value ? <p className="text-[10px] text-gray-400">Value: {formatPrice(gift.value)}</p> : null}
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-green-600">FREE</div>
-                <div className="text-sm text-green-700 font-medium">
-                  Added to cart!
-                </div>
-              </div>
+              <span className="text-xs font-bold text-green-600 bg-green-100 border border-green-300 px-2 py-0.5 rounded flex-shrink-0">Added FREE</span>
             </div>
           ))}
         </div>
@@ -864,14 +741,7 @@ const Sales: React.FC = () => {
     );
   };
 
-  // ENHANCED: Helper function to format gift text
-  const formatGiftText = (gifts: ProductGift[]) => {
-    if (gifts.length === 0) return null;
-    const gift = gifts[0]; // Show first gift
-    return `Buy ${gift.minMainQuantity}+ get ${gift.giftProductName} FREE!`;
-  };
-
-  // // NEW: Component to display gift eligibility hints
+  //// NEW: Component to display gift eligibility hints
   // const GiftEligibilityHints: React.FC = () => {
   //   if (!gifts || (!gifts.saleGifts.length && !gifts.productGifts.length))
   //     return null;
@@ -906,8 +776,8 @@ const Sales: React.FC = () => {
   if (loading || salesLoading || productsLoading) {
     return (
       <PageLayout>
-        <div className="min-h-screen flex justify-center items-center bg-gray-50">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+        <div className="min-h-screen flex justify-center items-center bg-white">
+          <div className="w-8 h-8 border-2 border-t-red-600 border-r-red-200 border-b-red-200 border-l-red-200 rounded-full animate-spin" />
         </div>
       </PageLayout>
     );
@@ -916,27 +786,17 @@ const Sales: React.FC = () => {
   if (error || salesError) {
     return (
       <PageLayout>
-        <div className="min-h-screen flex justify-center items-center bg-gray-50">
-          <div className="text-center p-8 max-w-md bg-white rounded-2xl shadow-lg">
-            <div className="text-red-500 mb-4">
-              <svg
-                className="w-16 h-16 mx-auto"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
+        <div className="min-h-screen flex justify-center items-center bg-white">
+          <div className="text-center p-8 max-w-md bg-white border border-gray-200 rounded-2xl shadow-sm">
+            <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Oops! Something went wrong
-            </h2>
-            <p className="text-gray-600 mb-6">{error || salesError}</p>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-gray-500 text-sm mb-6">{error || salesError}</p>
             <button
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-xl transition-colors"
               onClick={() => window.location.reload()}
             >
               Try Again
@@ -950,55 +810,53 @@ const Sales: React.FC = () => {
   return (
     <PageLayout>
       <Breadcrumb
+        bgColor="black"
         items={[
-          { name: "Home", link: "/" },
-          { name: "Sales", link: "/sales" },
+          { name: "Home", href: "/" },
+          { name: "Sales", href: "/sales" },
         ]}
       />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-        {/* Modern Hero Banner */}
-        <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-b border-gray-100">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-            <div className="text-center max-w-4xl mx-auto">
-              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full text-sm font-medium text-gray-700 mb-6">
-                <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                Live Sale Event
-                {/* NEW: Gift indicator */}
+      <div className="min-h-screen bg-white">
+
+        {/* ── Hero Banner ── */}
+        <div className="bg-gray-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20">
+            <div className="text-center max-w-3xl mx-auto">
+              {/* Live pill */}
+              <div className="inline-flex items-center gap-2 bg-white/10 text-white/80 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-widest mb-6">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                Live Sale
                 {activeSale?.hasGifts && (
-                  <span className="ml-3 inline-flex items-center">
-                    <span className="text-yellow-500 mr-1">🎁</span>
-                    <span className="text-xs">Free Gifts Available</span>
+                  <span className="ml-2 bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full text-[10px]">
+                    Free Gifts Available
                   </span>
                 )}
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold bg-gradient-to-r from-gray-800 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4 sm:mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-4">
                 {activeSale ? activeSale.name : "Seasonal Sale Event"}
               </h1>
 
-              <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-white/50 text-base sm:text-lg leading-relaxed mb-10 max-w-xl mx-auto">
                 {activeSale
                   ? activeSale.description
-                  : "Discover amazing deals with up to 50% off on selected premium items!"}
+                  : "Discover amazing deals with up to 50% off on selected premium items."}
               </p>
 
-              {/* Modern Countdown Timer */}
+              {/* Countdown */}
               {activeSale && activeSale.endDate && (
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-12">
+                <div className="flex justify-center gap-3 mb-10">
                   {[
                     { value: timeLeft.days, label: "Days" },
                     { value: timeLeft.hours, label: "Hours" },
-                    { value: timeLeft.minutes, label: "Minutes" },
-                    { value: timeLeft.seconds, label: "Seconds" },
-                  ].map((item, index) => (
-                    <div
-                      key={index}
-                      className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-4 sm:p-6 w-20 sm:w-24 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <div className="text-2xl sm:text-3xl font-bold text-gray-800">
-                        {item.value}
+                    { value: timeLeft.minutes, label: "Min" },
+                    { value: timeLeft.seconds, label: "Sec" },
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white/10 rounded-xl px-5 py-4 min-w-[72px] text-center">
+                      <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
+                        {String(item.value).padStart(2, "0")}
                       </div>
-                      <div className="text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-medium">
+                      <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">
                         {item.label}
                       </div>
                     </div>
@@ -1008,248 +866,147 @@ const Sales: React.FC = () => {
 
               <Link
                 to="/products"
-                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group"
+                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold px-8 py-3 rounded-xl text-sm transition-all"
               >
-                <span>Shop Now</span>
-                <svg
-                  className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
+                Shop All Products
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Gift Sections */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Show all available gifts prominently */}
+        {/* ── Gift Sections ── */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
           <AvailableGiftsSection />
-
-          {/* Show applicable gifts from current cart */}
           <GiftDisplay />
         </div>
 
-        {/* Modern Products Section */}
-        <div
-          id="products"
-          className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20"
-        >
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
-              {activeSale ? `${activeSale.name} Products` : "Sale Products"}
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
-
-            {/* Show gift summary */}
-            {(processedGifts.saleGifts.length > 0 ||
-              processedGifts.productGifts.length > 0) && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full">
-                <span className="text-2xl">🎁</span>
-                <span className="font-semibold text-gray-700">
-                  {processedGifts.saleGifts.length +
-                    processedGifts.productGifts.length}{" "}
-                  free gifts available with qualifying purchases!
-                </span>
+        {/* ── Products Section ── */}
+        <div id="products" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-2.5">
+              <div className="w-1 h-6 bg-red-600 rounded-full" />
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {activeSale ? `${activeSale.name} Products` : "Sale Products"}
+                </h2>
+                <p className="text-sm text-gray-400 mt-0.5">{saleProducts.length} items on sale</p>
+              </div>
+            </div>
+            {(processedGifts.saleGifts.length > 0 || processedGifts.productGifts.length > 0) && (
+              <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                {processedGifts.saleGifts.length + processedGifts.productGifts.length} free gifts available
               </div>
             )}
           </div>
 
-          {/* Loading indicator for gifts */}
           {giftLoading && (
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 text-blue-600">
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
-                <span className="text-sm">Calculating your gifts...</span>
-              </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+              <div className="w-3.5 h-3.5 border-2 border-t-red-600 border-gray-200 rounded-full animate-spin" />
+              Calculating eligible gifts…
             </div>
           )}
 
           {saleProducts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="mb-6">
-                <svg
-                  className="w-24 h-24 mx-auto text-gray-300"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
+            <div className="text-center py-24">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-4">
-                No Sale Products Available
-              </h3>
-              <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                We're currently updating our sale collection. Check back soon
-                for amazing deals!
-              </p>
-              <Link
-                to="/products"
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              >
+              <h3 className="text-base font-semibold text-gray-800 mb-1">No sale products right now</h3>
+              <p className="text-sm text-gray-500 mb-6">We're updating our deals. Check back soon.</p>
+              <Link to="/products" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
                 Browse All Products
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {saleProducts.map((product) => {
                 const productGifts = getProductGifts(product.id);
                 const hasProductGifts = productGifts.length > 0;
-                const giftText = formatGiftText(productGifts);
 
                 return (
                   <div
                     key={product.id}
-                    className={`group bg-white rounded-2xl shadow-md hover:shadow-2xl overflow-hidden transition-all duration-300 hover:-translate-y-2 border ${
-                      hasProductGifts
-                        ? "border-yellow-300 ring-2 ring-yellow-200"
-                        : "border-gray-100"
+                    className={`group bg-white rounded-2xl overflow-hidden border transition-all duration-200 shadow-sm hover:shadow-lg ${
+                      hasProductGifts ? "border-amber-300" : "border-gray-100 hover:border-gray-200"
                     }`}
                   >
-                    <div className="relative overflow-hidden">
+                    {/* Image */}
+                    <Link to={`/product/${product.id}`} className="relative block aspect-square bg-white overflow-hidden">
                       <ProductImage
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-48 sm:h-56 object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-400"
                       />
+                      {/* Discount badge */}
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        -{product.discount}%
+                      </span>
+                      {/* Gift badge */}
+                      {hasProductGifts && (
+                        <span className="absolute top-2 right-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                          + Gift
+                        </span>
+                      )}
+                      {!hasProductGifts && processedGifts.saleGifts.length > 0 && (
+                        <span className="absolute bottom-2 left-2 bg-gray-900/70 text-white text-[10px] font-medium px-2 py-0.5 rounded">
+                          Gift eligible
+                        </span>
+                      )}
+                    </Link>
 
-                      {/* Discount Badge */}
-                      <div className="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                        {product.discount}% OFF
+                    {/* Info */}
+                    <div className="p-3 border-t border-gray-100">
+                      <Link to={`/product/${product.id}`}>
+                        <h3 className="text-xs font-semibold text-gray-900 line-clamp-2 leading-snug hover:text-red-600 transition-colors mb-2">
+                          {product.name}
+                        </h3>
+                      </Link>
+
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-sm font-bold text-gray-900">{formatPrice(product.salePrice)}</span>
+                        <span className="text-xs text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
                       </div>
 
-                      {/* ENHANCED: Gift Badge */}
-                      {hasProductGifts && (
-                        <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-pulse">
-                          🎁 FREE GIFT
-                        </div>
-                      )}
-
-                      {/* Sale-level gift indicator */}
-                      {processedGifts.saleGifts.length > 0 &&
-                        !hasProductGifts && (
-                          <div className="absolute bottom-3 left-3 bg-gradient-to-r from-pink-400 to-purple-400 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                            💝 Gift Eligible
-                          </div>
-                        )}
-
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    </div>
-
-                    <div className="p-4 sm:p-5">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {product.name}
-                      </h3>
-
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                        {product.description
-                          ? product.description.length > 80
-                            ? product.description.substring(0, 80) + "..."
-                            : product.description
-                          : "Premium quality product with excellent features"}
+                      {/* Stock */}
+                      <p className={`text-[10px] font-medium mb-2.5 ${
+                        (product.stock || product.quantity || 0) < 5 ? "text-red-500" : "text-green-600"
+                      }`}>
+                        {(product.stock || product.quantity || 0) < 5
+                          ? `Only ${product.stock || product.quantity || 0} left`
+                          : `In stock`}
                       </p>
 
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-xl font-bold text-blue-600">
-                          {formatPrice(product.salePrice)}
-                        </span>
-                        <span className="text-sm text-gray-400 line-through">
-                          {formatPrice(product.originalPrice)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between mb-4">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            (product.stock || product.quantity || 0) < 5
-                              ? "bg-red-100 text-red-600"
-                              : "bg-green-100 text-green-600"
-                          }`}
-                        >
-                          {(product.stock || product.quantity || 0) < 5
-                            ? `Only ${
-                                product.stock || product.quantity || 0
-                              } left!`
-                            : `${
-                                product.stock || product.quantity || 0
-                              } in stock`}
-                        </span>
-                      </div>
-
-                      {/* ENHANCED: Product-specific gift display */}
+                      {/* Gift detail */}
                       {hasProductGifts && (
-                        <div className="mb-4 space-y-2">
-                          {productGifts.map((gift, index) => (
-                            <div
-                              key={gift.id || index}
-                              className="p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl"
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-lg">🎁</span>
-                                <span className="font-bold text-yellow-800 text-sm">
-                                  FREE GIFT INCLUDED!
-                                </span>
-                              </div>
-                              <div className="text-xs text-yellow-700 font-medium">
-                                Buy {gift.minMainQuantity}+ of this item
-                              </div>
-                              <div className="text-xs text-yellow-600">
-                                Get <strong>{gift.giftProductName}</strong> x
-                                {gift.giftQuantity} FREE!
-                              </div>
-                            </div>
+                        <div className="mb-2.5 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                          {productGifts.map((gift, i) => (
+                            <p key={i} className="text-[10px] text-amber-700 font-medium">
+                              Buy {gift.minMainQuantity}+ → get {gift.giftProductName} x{gift.giftQuantity} free
+                            </p>
                           ))}
                         </div>
                       )}
-
-                      {/* Sale-level gift hint */}
-                      {!hasProductGifts &&
-                        processedGifts.saleGifts.length > 0 && (
-                          <div className="mb-3 p-2 bg-pink-50 border border-pink-200 rounded-lg">
-                            <div className="text-xs text-pink-700 font-medium">
-                              💝 Add to cart to qualify for free gifts!
-                            </div>
-                          </div>
-                        )}
+                      {!hasProductGifts && processedGifts.saleGifts.length > 0 && (
+                        <p className="text-[10px] text-gray-500 mb-2.5">Add to cart to unlock free gift</p>
+                      )}
 
                       <button
                         onClick={(e) => addCartHandler(e, product)}
-                        className={`w-full px-4 py-3 font-semibold rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
-                          hasProductGifts
-                            ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                        }`}
+                        className="w-full flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-semibold py-2 rounded-lg transition-all"
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l4.5-6M7 13h10m0 0l1.5 6M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6"
-                          />
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6M7 13h10m0 0l1.5 6" />
                         </svg>
-                        {hasProductGifts
-                          ? "Add to Cart + Get Gift!"
-                          : "Add to Cart"}
+                        {hasProductGifts ? "Add to Cart + Gift" : "Add to Cart"}
                       </button>
                     </div>
                   </div>
