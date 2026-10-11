@@ -28,7 +28,7 @@ import type { StoreLocation } from "../../redux/constants/settingsConstants";
 import { Button } from "../../components/ui/button";
 import PageLayout from "../../components/PageLayout";
 import { ProductImage } from "../../utils/imageHelper";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { formatPrice } from "@/utils/formatPrice";
 
 export const Cart = () => {
@@ -226,19 +226,6 @@ export const Cart = () => {
 
   return (
     <PageLayout backgroundColor="bg-white">
-      <Toaster
-        position="top-right"
-        reverseOrder={false}
-        gutter={12} // adds space between stacked toasts
-        toastOptions={{
-          duration: 3000,
-          style: {
-            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.1)",
-            borderRadius: "10px",
-            padding: "12px 16px",
-          },
-        }}
-      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial="hidden"

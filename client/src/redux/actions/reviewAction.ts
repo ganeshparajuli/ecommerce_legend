@@ -14,7 +14,7 @@ export const fetchReviews = (productId: string) => async (dispatch: Dispatch<Any
   dispatch({ type: REVIEWS_FETCH_REQUEST });
   try {
     const token = localStorage.getItem("token");
-    const url = token ? `/api/reviews/product/${productId}` : `/api/reviews/public/${productId}`;
+    const url = token ? `reviews/product/${productId}` : `reviews/public/${productId}`;
     const { data } = await api.get(url);
     dispatch({ type: REVIEWS_FETCH_SUCCESS, payload: data.data });
   } catch (error: any) {
@@ -26,7 +26,7 @@ export const submitReview = (productId: string, rating: number, comment: string)
   async (dispatch: Dispatch<AnyAction>) => {
     dispatch({ type: REVIEW_SUBMIT_REQUEST });
     try {
-      const { data } = await api.post("/api/reviews", { product_id: productId, rating, comment });
+      const { data } = await api.post("reviews", { product_id: productId, rating, comment });
       dispatch({ type: REVIEW_SUBMIT_SUCCESS, payload: data.data });
       return data;
     } catch (error: any) {
@@ -39,7 +39,7 @@ export const submitReview = (productId: string, rating: number, comment: string)
 export const deleteReview = (reviewId: string) => async (dispatch: Dispatch<AnyAction>) => {
   dispatch({ type: REVIEW_DELETE_REQUEST });
   try {
-    await api.delete(`/api/reviews/${reviewId}`);
+    await api.delete(`reviews/${reviewId}`);
     dispatch({ type: REVIEW_DELETE_SUCCESS, payload: reviewId });
   } catch (error: any) {
     dispatch({ type: REVIEW_DELETE_FAIL, payload: getErr(error) });
@@ -49,7 +49,7 @@ export const deleteReview = (reviewId: string) => async (dispatch: Dispatch<AnyA
 export const toggleReviewVisibility = (reviewId: string) => async (dispatch: Dispatch<AnyAction>) => {
   dispatch({ type: REVIEW_TOGGLE_VIS_REQUEST });
   try {
-    const { data } = await api.patch(`/api/reviews/${reviewId}/visibility`);
+    const { data } = await api.patch(`reviews/${reviewId}/visibility`);
     dispatch({ type: REVIEW_TOGGLE_VIS_SUCCESS, payload: { reviewId, isVisible: data.data.isVisible } });
   } catch (error: any) {
     dispatch({ type: REVIEW_TOGGLE_VIS_FAIL, payload: getErr(error) });

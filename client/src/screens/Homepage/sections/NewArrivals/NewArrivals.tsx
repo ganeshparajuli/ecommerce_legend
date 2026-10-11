@@ -19,7 +19,7 @@ import {
   addToWishlist,
   removeFromWishlist,
 } from "../../../../redux/actions/wishlistActions";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { formatPrice } from "@/utils/formatPrice";
 
 // Utility functions
@@ -285,7 +285,6 @@ export const NewArrivals = () => {
 
   return (
     <section className=" bg-white">
-      <Toaster />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}

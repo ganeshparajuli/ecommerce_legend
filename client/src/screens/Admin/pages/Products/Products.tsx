@@ -31,6 +31,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Check,
   X,
   Package,
   DollarSign,
@@ -82,6 +83,45 @@ import {
   calculateDiscountPercentage,
 } from "../../../../utils/productHelper";
 import { ProductImage, getImageUrl } from "../../../../utils/imageHelper";
+
+// ─── Attribute preset system ──────────────────────────────────────────────────
+// Canonical key names must stay in sync with getAttributeType() in ProductDetails.tsx
+const ATTR_PRESETS = {
+  color: {
+    label: "Color",
+    key: "color",
+    icon: "🎨",
+    values: ["Black", "White", "Red", "Blue", "Green", "Yellow", "Orange", "Pink", "Purple", "Gray", "Silver", "Gold", "Brown", "Navy", "Maroon", "Beige", "Coral", "Teal", "Indigo"],
+  },
+  clothing_size: {
+    label: "Size (Clothing)",
+    key: "size",
+    icon: "👕",
+    values: ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "4XL", "5XL", "Free Size"],
+  },
+  storage: {
+    label: "Storage",
+    key: "storage",
+    icon: "💾",
+    values: ["32GB", "64GB", "128GB", "256GB", "512GB", "1TB", "2TB"],
+  },
+  ram: {
+    label: "RAM",
+    key: "ram",
+    icon: "🧠",
+    values: ["2GB", "4GB", "6GB", "8GB", "12GB", "16GB", "32GB", "64GB"],
+  },
+} as const;
+
+type AttrPresetKey = keyof typeof ATTR_PRESETS;
+
+const COLOR_SWATCHES: Record<string, string> = {
+  Black: "#111", White: "#f8f8f8", Red: "#dc2626", Blue: "#2563eb",
+  Green: "#16a34a", Yellow: "#eab308", Orange: "#ea580c", Pink: "#ec4899",
+  Purple: "#9333ea", Gray: "#6b7280", Silver: "#c0c0c0", Gold: "#d4af37",
+  Brown: "#92400e", Navy: "#1e3a5f", Maroon: "#800000", Beige: "#f5f0e8",
+  Coral: "#ff6b6b", Teal: "#0d9488", Indigo: "#4338ca",
+};
 
 // Define interfaces
 interface Category {
@@ -164,6 +204,10 @@ const Products = () => {
   const [variants, setVariants] = useState<VariantFormRow[]>([makeEmptyVariant()]);
   const [variantAttrKeyInputs, setVariantAttrKeyInputs] = useState<Record<number, string>>({});
   const [variantAttrValueInputs, setVariantAttrValueInputs] = useState<Record<number, string>>({});
+  // Which attribute type panel is open per variant row: preset key | "custom" | ""
+  const [variantAttrPanel, setVariantAttrPanel] = useState<Record<number, string>>({});
+  // Custom value input for preset panels (e.g. typing a custom color not in the list)
+  const [variantPresetCustom, setVariantPresetCustom] = useState<Record<number, string>>({});
 
   // UI state
   const [submitting, setSubmitting] = useState(false);
@@ -416,6 +460,8 @@ const Products = () => {
     setVariants([makeEmptyVariant()]);
     setVariantAttrKeyInputs({});
     setVariantAttrValueInputs({});
+    setVariantAttrPanel({});
+    setVariantPresetCustom({});
     setSelectedBrandId("");
     setBrandCategories(categories);
     setImages([]);
@@ -505,6 +551,14 @@ const Products = () => {
         return { ...v, attributes };
       })
     );
+
+  // Add a single attribute directly (used by preset chips)
+  const addAttrDirect = (index: number, key: string, value: string) => {
+    if (!key || !value) return;
+    setVariants((prev) =>
+      prev.map((v, i) => (i === index ? { ...v, attributes: { ...v.attributes, [key]: value } } : v))
+    );
+  };
 
   const handleDeleteProduct = async (
     productId: string,
@@ -1783,6 +1837,19 @@ const Products = () => {
                 </p>
               )}
 
+              {/* Warn when multiple variants exist but some lack attributes */}
+              {variants.length > 1 && variants.some((v) => Object.keys(v.attributes).length === 0) && (
+                <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                  <div>
+                    <p className="font-semibold">Variants without attributes won't be selectable by customers</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Each variant must have at least one attribute (Color, Size, Storage, RAM, or Custom) so the storefront knows how to show and select it.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 {variants.map((variant, index) => {
                   const price = parseFloat(variant.price) || 0;
@@ -1796,19 +1863,26 @@ const Products = () => {
                       className="border border-gray-200 rounded-xl p-4 space-y-4 bg-gray-50/50"
                     >
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex items-center flex-wrap gap-2">
                           <span className="text-sm font-semibold text-gray-700">
                             Variant {index + 1}
                           </span>
-                          {comboLabel && (
-                            <span className="ml-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                          {comboLabel ? (
+                            <span className="text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                               {comboLabel}
                             </span>
-                          )}
-                          {!comboLabel && (
-                            <span className="ml-2 text-xs text-gray-400 italic">
-                              Add attributes below to define this combination
-                            </span>
+                          ) : (
+                            variants.length > 1 ? (
+                              // Multiple variants but this one has no attributes — customers can't select it
+                              <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                <AlertCircle className="w-3 h-3" />
+                                No attributes — invisible to customers
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">
+                                Single variant — no attributes needed
+                              </span>
+                            )
                           )}
                         </div>
                         {variants.length > 1 && (
@@ -1883,61 +1957,192 @@ const Products = () => {
                         </div>
                       </div>
 
-                      {/* Attributes - e.g. storage: 256GB, color: Red */}
-                      <div>
-                        <label className="text-xs font-medium text-gray-600 mb-2 block">
-                          Attributes (e.g. storage, color, size)
+                      {/* Attributes — type-aware preset system */}
+                      <div className="space-y-3">
+                        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block">
+                          Variant Attributes
                         </label>
+
+                        {/* Current attributes as removable tags */}
                         {Object.keys(variant.attributes).length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-2">
+                          <div className="flex flex-wrap gap-2">
                             {Object.entries(variant.attributes).map(([key, value]) => (
                               <span
                                 key={key}
-                                className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium"
+                                className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 shadow-sm"
                               >
-                                {key}: {value}
+                                {/* Color dot for color attributes */}
+                                {key === "color" && COLOR_SWATCHES[value] && (
+                                  <span className="w-3 h-3 rounded-full inline-block border border-gray-300 flex-shrink-0" style={{ backgroundColor: COLOR_SWATCHES[value] }} />
+                                )}
+                                <span className="text-gray-400 text-[10px] uppercase">{key}</span>
+                                <span className="font-semibold text-gray-800">{value}</span>
                                 <button
                                   type="button"
                                   onClick={() => removeVariantAttribute(index, key)}
-                                  className="hover:text-indigo-900"
+                                  className="ml-0.5 w-4 h-4 rounded-full hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <X className="w-2.5 h-2.5" />
                                 </button>
                               </span>
                             ))}
                           </div>
                         )}
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Attribute name (e.g. Storage)"
-                            value={variantAttrKeyInputs[index] || ""}
-                            onChange={(e) =>
-                              setVariantAttrKeyInputs((prev) => ({ ...prev, [index]: e.target.value }))
-                            }
-                            className="h-10 rounded-lg flex-1"
-                          />
-                          <Input
-                            placeholder="Value (e.g. 256GB)"
-                            value={variantAttrValueInputs[index] || ""}
-                            onChange={(e) =>
-                              setVariantAttrValueInputs((prev) => ({ ...prev, [index]: e.target.value }))
-                            }
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                addVariantAttribute(index);
-                              }
-                            }}
-                            className="h-10 rounded-lg flex-1"
-                          />
-                          <Button
+
+                        {/* Attribute type selector row */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {(Object.keys(ATTR_PRESETS) as AttrPresetKey[]).map((type) => {
+                            const preset = ATTR_PRESETS[type];
+                            const isOpen = variantAttrPanel[index] === type;
+                            // Disable if this key already set (one color per variant, etc.)
+                            const alreadyHasKey = variant.attributes[preset.key] !== undefined;
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                disabled={alreadyHasKey && !isOpen}
+                                onClick={() =>
+                                  setVariantAttrPanel((prev) => ({
+                                    ...prev,
+                                    [index]: prev[index] === type ? "" : type,
+                                  }))
+                                }
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                                  isOpen
+                                    ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
+                                    : alreadyHasKey
+                                    ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                                    : "border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-600"
+                                }`}
+                              >
+                                <span>{preset.icon}</span>
+                                {preset.label}
+                                {alreadyHasKey && <Check className="w-3 h-3 text-green-500" />}
+                              </button>
+                            );
+                          })}
+                          <button
                             type="button"
-                            onClick={() => addVariantAttribute(index)}
-                            className="bg-blue-600 hover:bg-blue-700 px-4 rounded-lg"
+                            onClick={() =>
+                              setVariantAttrPanel((prev) => ({
+                                ...prev,
+                                [index]: prev[index] === "custom" ? "" : "custom",
+                              }))
+                            }
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                              variantAttrPanel[index] === "custom"
+                                ? "border-purple-500 bg-purple-50 text-purple-700"
+                                : "border-gray-200 bg-white text-gray-600 hover:border-purple-400 hover:text-purple-600"
+                            }`}
                           >
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                            <Plus className="w-3 h-3" /> Custom
+                          </button>
                         </div>
+
+                        {/* Preset value panel */}
+                        {variantAttrPanel[index] && variantAttrPanel[index] !== "custom" && (() => {
+                          const type = variantAttrPanel[index] as AttrPresetKey;
+                          const preset = ATTR_PRESETS[type];
+                          return (
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5">
+                              <p className="text-[11px] text-gray-500 font-medium">
+                                Click to add <span className="text-gray-700">{preset.label}</span> — one per variant
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {preset.values.map((val) => {
+                                  const currentVal = variant.attributes[preset.key];
+                                  const isSelected = currentVal === val;
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => {
+                                        addAttrDirect(index, preset.key, val);
+                                        setVariantAttrPanel((prev) => ({ ...prev, [index]: "" }));
+                                      }}
+                                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                                        isSelected
+                                          ? "border-green-500 bg-green-50 text-green-700"
+                                          : "border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                                      }`}
+                                    >
+                                      {type === "color" && COLOR_SWATCHES[val] && (
+                                        <span className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: COLOR_SWATCHES[val] }} />
+                                      )}
+                                      {isSelected && <Check className="w-3 h-3 text-green-600" />}
+                                      {val}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {/* Custom value for this attribute type */}
+                              <div className="flex gap-2 pt-1 border-t border-gray-200">
+                                <Input
+                                  placeholder={`Custom ${preset.label.toLowerCase()} value…`}
+                                  value={variantPresetCustom[index] || ""}
+                                  onChange={(e) => setVariantPresetCustom((prev) => ({ ...prev, [index]: e.target.value }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const val = (variantPresetCustom[index] || "").trim();
+                                      if (val) {
+                                        addAttrDirect(index, preset.key, val);
+                                        setVariantPresetCustom((prev) => ({ ...prev, [index]: "" }));
+                                        setVariantAttrPanel((prev) => ({ ...prev, [index]: "" }));
+                                      }
+                                    }
+                                  }}
+                                  className="h-8 text-xs rounded-lg flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = (variantPresetCustom[index] || "").trim();
+                                    if (val) {
+                                      addAttrDirect(index, preset.key, val);
+                                      setVariantPresetCustom((prev) => ({ ...prev, [index]: "" }));
+                                      setVariantAttrPanel((prev) => ({ ...prev, [index]: "" }));
+                                    }
+                                  }}
+                                  className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 rounded-lg"
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Custom key+value panel */}
+                        {variantAttrPanel[index] === "custom" && (
+                          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
+                            <p className="text-[11px] text-purple-600 font-medium">Custom attribute — enter any key and value</p>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Key (e.g. finish)"
+                                value={variantAttrKeyInputs[index] || ""}
+                                onChange={(e) => setVariantAttrKeyInputs((prev) => ({ ...prev, [index]: e.target.value }))}
+                                className="h-9 text-xs rounded-lg flex-1"
+                              />
+                              <Input
+                                placeholder="Value (e.g. matte)"
+                                value={variantAttrValueInputs[index] || ""}
+                                onChange={(e) => setVariantAttrValueInputs((prev) => ({ ...prev, [index]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") { e.preventDefault(); addVariantAttribute(index); }
+                                }}
+                                className="h-9 text-xs rounded-lg flex-1"
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => { addVariantAttribute(index); setVariantAttrPanel((prev) => ({ ...prev, [index]: "" })); }}
+                                className="h-9 px-3 bg-purple-600 hover:bg-purple-700 rounded-lg"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

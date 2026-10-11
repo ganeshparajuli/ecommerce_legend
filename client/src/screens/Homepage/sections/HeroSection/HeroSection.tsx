@@ -18,7 +18,7 @@ import {
   addToWishlist,
   removeFromWishlistByProductId,
 } from "../../../../redux/actions/wishlistActions";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { formatPrice } from "@/utils/formatPrice";
 
 const isUserLoggedIn = (): boolean => {
@@ -336,8 +336,6 @@ export const HeroSection: React.FC = () => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <Toaster />
-
       {/* Background decorative element */}
       <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-red-50/30 to-transparent opacity-60"></div>
 

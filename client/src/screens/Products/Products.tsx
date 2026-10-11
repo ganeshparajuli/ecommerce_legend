@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 import {
   ShoppingCart,
@@ -587,21 +587,6 @@ const JoyStoreProducts = () => {
     <div className="min-h-screen bg-gray-50 relative mt-20 lg:mt-24">
       {/* Use existing Navbar from Homepage */}
       <NavbarSection />
-
-      {/* Toast Container */}
-      <Toaster
-        position="top-right"
-        reverseOrder={false}
-        gutter={12} // adds space between stacked toasts
-        toastOptions={{
-          duration: 3000,
-          style: {
-            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.1)",
-            borderRadius: "10px",
-            padding: "12px 16px",
-          },
-        }}
-      />
 
       {/* Main Content */}
       <div className="pt-4 px-4 lg:px-8 relative z-10 mb-20 max-lg:mt-16 max-lg:pt-0">

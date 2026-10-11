@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   EyeIcon,
@@ -363,22 +363,6 @@ const UserLogin: React.FC = () => {
     <div className="min-h-screen bg-white flex flex-col">
       {/* Navbar Section */}
       <NavbarSection />
-
-      {/* Toaster for notifications - Configure for consistent positioning */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "#ffffff",
-            color: "#374151",
-            border: "1px solid #e5e7eb",
-            borderRadius: "16px",
-            padding: "12px 16px",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
-          },
-        }}
-      />
 
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center px-3 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24 mb-16 sm:mb-20 lg:mb-24">
