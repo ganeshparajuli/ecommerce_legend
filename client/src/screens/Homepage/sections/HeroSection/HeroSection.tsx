@@ -168,12 +168,13 @@ export const HeroSection: React.FC = () => {
 
           {/* ── Image side ── */}
           <div className="order-1 lg:order-2 flex items-center justify-center py-10 lg:py-12">
-            {/* White product panel — works for any image background */}
-            <div className="relative w-[300px] h-[300px] md:w-[340px] md:h-[340px] lg:w-[400px] lg:h-[400px] bg-white rounded-3xl overflow-hidden shadow-2xl">
+            <div className="relative w-[300px] h-[300px] md:w-[340px] md:h-[340px] lg:w-[420px] lg:h-[420px]">
+              {/* Subtle radial glow behind the product */}
+              <div className="absolute inset-0 rounded-full bg-white/5 blur-3xl scale-75" />
               <ProductImage
                 src={Array.isArray(product.image) ? product.image[0] : product.image}
                 alt={product.name}
-                className="absolute inset-0 w-full h-full object-contain p-8"
+                className="relative w-full h-full object-contain drop-shadow-2xl"
                 fallbackUrl="/placeholder.jpg"
               />
             </div>

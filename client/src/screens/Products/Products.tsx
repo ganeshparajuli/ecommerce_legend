@@ -149,11 +149,12 @@ const FeaturedCarousel: React.FC<{ products: Product[] }> = ({ products }) => {
 
           {/* Image side */}
           <div className="hidden md:flex items-center justify-center py-8 pr-10">
-            <div className="relative w-56 h-56 bg-white rounded-2xl overflow-hidden shadow-xl">
+            <div className="relative w-56 h-56">
+              <div className="absolute inset-0 rounded-full bg-white/5 blur-2xl scale-75" />
               <ProductImage
                 src={Array.isArray(product.image) ? product.image[0] : product.image}
                 alt={product.name}
-                className="absolute inset-0 w-full h-full object-contain p-6"
+                className="relative w-full h-full object-contain drop-shadow-2xl"
                 fallbackUrl="/placeholder.jpg"
               />
             </div>
