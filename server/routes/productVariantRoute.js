@@ -13,6 +13,22 @@ router.get("/:id", productVariantController.getProductVariantById);
 // ============================
 // PROTECTED ROUTES (Admin only)
 // ============================
+
+// Must come before "/:id" to avoid Express treating "generate"/"bulk" as an id
+router.post(
+  "/generate",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productVariantController.generateVariants
+);
+
+router.patch(
+  "/bulk",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  productVariantController.bulkUpdateVariants
+);
+
 router.post(
   "/",
   isAuthenticated,

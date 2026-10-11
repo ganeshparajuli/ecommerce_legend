@@ -110,3 +110,177 @@ exports.restoreProductVariant = asyncHandler(async (req, res) => {
   await variant.update({ deletedReason: null });
   sendSuccess(res, { message: "Product variant restored successfully", data: variant });
 });
+
+// POST /api/productVariant/generate
+// Body: { productId, options: { Color: ["Orange","Red"], Size: ["128GB","256GB"] }, defaults: { price, quantity } }
+// Generates all attribute combinations as variants. Skips combinations that already exist.
+exports.generateVariants = asyncHandler(async (req, res) => {
+  const { productId, options, defaults = {} } = req.body;
+  if (!productId) throw new ApiError(400, "productId is required");
+  if (!options || typeof options !== "object" || Object.keys(options).length === 0) {
+    throw new ApiError(400, "options must be a non-empty object, e.g. { Color: ['Red','Blue'], Size: ['128GB'] }");
+  }
+
+  const product = await Product.findByPk(productId);
+  if (!product) throw new ApiError(404, "Product not found");
+
+  const optionKeys = Object.keys(options);
+  for (const key of optionKeys) {
+    if (!Array.isArray(options[key]) || options[key].length === 0) {
+      throw new ApiError(400, `Option "${key}" must be a non-empty array of values`);
+    }
+  }
+
+  // Build cartesian product of all option value arrays
+  function cartesian(keys, index, current, results) {
+    if (index === keys.length) {
+      results.push({ ...current });
+      return;
+    }
+    const key = keys[index];
+    for (const val of options[key]) {
+      cartesian(keys, index + 1, { ...current, [key]: val }, results);
+    }
+  }
+  const combinations = [];
+  cartesian(optionKeys, 0, {}, combinations);
+
+  // Load existing active variants to detect duplicates
+  const existing = await ProductVariant.findAll({ where: { productId } });
+  const existingSignatures = new Set(
+    existing.map((v) => JSON.stringify(normalizeAttributes(v.attributes)))
+  );
+
+  const defaultPrice = Number(defaults.price) || 0;
+  if (!Number.isFinite(defaultPrice) || defaultPrice < 0) {
+    throw new ApiError(400, "defaults.price must be a valid non-negative number");
+  }
+  const defaultQty = Number.isFinite(Number(defaults.quantity)) ? parseInt(defaults.quantity, 10) : 0;
+  const isFirstVariantEver = existing.length === 0;
+
+  const toCreate = combinations.filter(
+    (attrs) => !existingSignatures.has(JSON.stringify(normalizeAttributes(attrs)))
+  );
+
+  if (toCreate.length === 0) {
+    return sendSuccess(res, {
+      message: "All combinations already exist — no new variants created",
+      data: { created: 0, skipped: combinations.length },
+    });
+  }
+
+  const created = await ProductVariant.bulkCreate(
+    toCreate.map((attrs, i) => ({
+      productId,
+      attributes: attrs,
+      price: defaultPrice,
+      quantity: defaultQty,
+      isDefault: isFirstVariantEver && i === 0,
+    }))
+  );
+
+  sendSuccess(res, {
+    status: 201,
+    message: `Generated ${created.length} variant(s), skipped ${combinations.length - toCreate.length} existing`,
+    data: {
+      created: created.length,
+      skipped: combinations.length - toCreate.length,
+      variants: created,
+    },
+  });
+});
+
+// PATCH /api/productVariant/bulk
+// Body: { updates: [{ id, price, compareAtPrice, quantity, sku, isDefault }] }
+// Updates multiple variants in one transaction — for matrix table edits.
+exports.bulkUpdateVariants = asyncHandler(async (req, res) => {
+  const { updates } = req.body;
+  if (!Array.isArray(updates) || updates.length === 0) {
+    throw new ApiError(400, "updates must be a non-empty array");
+  }
+
+  const ids = updates.map((u) => u.id).filter(Boolean);
+  if (ids.length !== updates.length) {
+    throw new ApiError(400, "Every update entry must include an id");
+  }
+
+  const variants = await ProductVariant.findAll({ where: { id: ids } });
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+  const missing = ids.filter((id) => !variantMap.has(id));
+  if (missing.length) {
+    throw new ApiError(404, `Variant(s) not found: ${missing.join(", ")}`);
+  }
+
+  const { sequelize: db } = require("../models");
+  const results = await db.transaction(async (t) => {
+    return Promise.all(
+      updates.map((u) => {
+        const variant = variantMap.get(u.id);
+        const payload = {};
+
+        if (u.quantity !== undefined) {
+          const qty = parseInt(u.quantity, 10);
+          if (!Number.isFinite(qty) || qty < 0) throw new ApiError(400, `Variant ${u.id}: quantity must be a non-negative integer`);
+          payload.quantity = qty;
+        }
+        if (u.price !== undefined) {
+          const price = Number(u.price);
+          if (!Number.isFinite(price) || price < 0) throw new ApiError(400, `Variant ${u.id}: price must be a valid non-negative number`);
+          payload.price = price;
+        }
+        if (u.compareAtPrice !== undefined) {
+          const cap = u.compareAtPrice === null ? null : Number(u.compareAtPrice);
+          const effectivePrice = payload.price ?? variant.price;
+          payload.compareAtPrice = cap !== null && cap > effectivePrice ? cap : null;
+        }
+        if (u.sku !== undefined) payload.sku = u.sku || null;
+        if (u.isDefault !== undefined) payload.isDefault = !!u.isDefault;
+
+        return variant.update(payload, { transaction: t });
+      })
+    );
+  });
+
+  sendSuccess(res, {
+    message: `${results.length} variant(s) updated successfully`,
+    data: results,
+  });
+});
+
+// GET /api/product/:id/variants/matrix
+// Returns variants grouped by their attribute keys with option value lists — ready for a picker UI.
+exports.getVariantMatrix = asyncHandler(async (req, res) => {
+  const variants = await ProductVariant.findAll({
+    where: { productId: req.params.id },
+    order: [["createdAt", "ASC"]],
+  });
+  if (!variants.length) throw new ApiError(404, "No variants found for this product");
+
+  // Collect all unique option keys and their possible values
+  const optionMap = {};
+  for (const v of variants) {
+    for (const [key, val] of Object.entries(v.attributes || {})) {
+      if (!optionMap[key]) optionMap[key] = new Set();
+      optionMap[key].add(String(val));
+    }
+  }
+  const options = Object.fromEntries(
+    Object.entries(optionMap).map(([k, set]) => [k, [...set]])
+  );
+
+  sendSuccess(res, {
+    data: {
+      options,       // e.g. { Color: ["Orange","Red"], Size: ["128GB","256GB"] }
+      variants,      // full variant rows — frontend maps each to its attribute combination
+    },
+  });
+});
+
+function normalizeAttributes(attrs) {
+  if (!attrs || typeof attrs !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(attrs)
+      .map(([k, v]) => [k.toLowerCase().trim(), String(v).toLowerCase().trim()])
+      .sort(([a], [b]) => a.localeCompare(b))
+  );
+}

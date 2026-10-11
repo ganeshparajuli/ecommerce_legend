@@ -301,7 +301,7 @@ INSERT INTO `notification_settings` (`id`, `order_confirmation`, `order_delivery
 
 -- --------------------------------------------------------
 
---
+
 -- Table structure for table `orders`
 --
 
@@ -737,7 +737,7 @@ INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `image`, `phone`
 ('7c09391e-f12e-4a4d-9c91-67bc4a9859f7', 'test test', 'test@test.com', '$2b$10$Zwr3DGcKoCFyFMqaZO7ru.GSgtis9JpIsC5QzWcVOQF/gOI5IOunG', 'user', NULL, '9814945424', NULL, 1, '2025-05-20 13:41:20'),
 ('9629a361-1ea6-49a0-9685-5146d8042662', 'Newton Timilsina', 'newton@newton.com', '$2b$10$j9rJ6N8JOwJmsHjSRT1GNOsDDtsrEGilvLZuGWUt2fPBJTdcHxeZK', 'user', NULL, '9841454545', NULL, 1, '2025-05-30 15:57:38'),
 ('9e54329d-ab8c-42d3-ab97-1f9412f0d4ba', 'Its Sunab', 'test1@gmail.com', '$2b$10$kkjTZchWHg0rPSCu5oMTgOFiNYpesvquyHImNqIg.yPBLxERovtsu', 'user', NULL, '9860280289', NULL, 1, '2025-05-22 15:46:17'),
-('b277710b-f478-4277-b411-6b1b8c0096b0', 'superadmin', 'admin@superadmin.com', '$2b$10$OgMzqn6lZDNcDcwjtvWy9ejkpn4jSVSNfp5qvtZkxksNzBH7Zvwuq', 'admin', NULL, '9814945424', 'Kathmandu', 1, '2025-05-10 14:39:07'),
+('b277710b-f478-4277-b411-6b1b8c0096b0', 'superadmin', 'admin@superadmin.com', '$2b$10$boD3yj2FRjLekacheN.eGumoR1uwUWbZlxDl60qxP3tVX8FFbH9Ri', 'admin', NULL, '9814945424', 'Kathmandu', 1, '2025-05-10 14:39:07'),
 ('da2daf2b-bd4c-4afd-b3a6-0c4d224db976', 'Sale Manager', 'sales@joystore.com', '$2b$10$drikXH79ZOwaq/Qf4x9xNOWmFUrT0DImYPkXmY/MF2WAeXncp1Z.O', 'sales', NULL, '9814945424', NULL, 1, '2025-06-07 15:00:41');
 
 -- --------------------------------------------------------

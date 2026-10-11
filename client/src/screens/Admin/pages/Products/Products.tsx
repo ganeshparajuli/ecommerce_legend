@@ -1787,15 +1787,30 @@ const Products = () => {
                 {variants.map((variant, index) => {
                   const price = parseFloat(variant.price) || 0;
                   const compareAtPrice = parseFloat(variant.compareAtPrice) || 0;
+                  const comboLabel = Object.entries(variant.attributes)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(" · ");
                   return (
                     <div
                       key={index}
                       className="border border-gray-200 rounded-xl p-4 space-y-4 bg-gray-50/50"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-700">
-                          Variant {index + 1}
-                        </span>
+                        <div>
+                          <span className="text-sm font-semibold text-gray-700">
+                            Variant {index + 1}
+                          </span>
+                          {comboLabel && (
+                            <span className="ml-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                              {comboLabel}
+                            </span>
+                          )}
+                          {!comboLabel && (
+                            <span className="ml-2 text-xs text-gray-400 italic">
+                              Add attributes below to define this combination
+                            </span>
+                          )}
+                        </div>
                         {variants.length > 1 && (
                           <button
                             type="button"
@@ -1806,6 +1821,7 @@ const Products = () => {
                           </button>
                         )}
                       </div>
+
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>

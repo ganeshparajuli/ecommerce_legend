@@ -9,7 +9,7 @@ exports.register = asyncHandler(async (req, res) => {
   requireFields(req.body, ["name", "email", "password"]);
 
   const existing = await User.findOne({ where: { email } });
-  if (existing) throw new ApiError(400, "User already exists");
+  if (existing) throw new ApiError(409, "An account with this email already exists");
 
   const image = req.file ? `uploads/${req.file.filename}` : null;
   const user = await User.create({ name, email, password, role: "user", image, phone });
@@ -21,7 +21,7 @@ exports.addUser = asyncHandler(async (req, res) => {
   requireFields(req.body, ["name", "email", "password", "role"]);
 
   const existing = await User.findOne({ where: { email } });
-  if (existing) throw new ApiError(400, "User already exists");
+  if (existing) throw new ApiError(409, "An account with this email already exists");
 
   const image = req.file ? `uploads/${req.file.filename}` : null;
   const user = await User.create({ name, email, password, role, image });

@@ -166,7 +166,8 @@ export const updateProduct = (id: string, formData: FormData) => async (dispatch
   try {
     dispatch({ type: UpdateProduct.Request });
     const response = await api.put(`product/${id}`, formData, { headers: { "Content-Type": "multipart/form-data" } });
-    dispatch({ type: UpdateProduct.Success, payload: response.data });
+    const normalized = response.data?.data ? normalizeProduct(response.data.data) : null;
+    dispatch({ type: UpdateProduct.Success, payload: { ...response.data, data: normalized } });
     return response.data;
   } catch (error) {
     dispatch({ type: UpdateProduct.Fail, payload: getErrorMessage(error) });

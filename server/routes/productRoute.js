@@ -1,5 +1,6 @@
 const express = require("express");
 const productController = require("../controller/productController");
+const productVariantController = require("../controller/productVariantController");
 const { authorizeRoles, isAuthenticated } = require("../middlewares/auth");
 const upload = require("../utils/Upload");
 
@@ -86,5 +87,7 @@ router.patch(
   authorizeRoles("admin"),
   productController.updateProductRating
 );
+
+router.get("/:id/variants/matrix", productVariantController.getVariantMatrix);
 
 module.exports = router;

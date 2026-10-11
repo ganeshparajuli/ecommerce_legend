@@ -42,7 +42,7 @@ exports.createOrder = asyncHandler(async (req, res) => {
       const variant = await ProductVariant.findByPk(productVariantId, { transaction: t, lock: t.LOCK.UPDATE });
       if (!variant) throw new ApiError(404, `Product variant ${productVariantId} not found`);
       if (variant.quantity < quantity) {
-        throw new ApiError(400, `Insufficient stock for variant ${productVariantId}: ${variant.quantity} available`);
+        throw new ApiError(400, `"${variant.sku || "item"}" does not have enough stock for the requested quantity`);
       }
 
       await variant.update({ quantity: variant.quantity - quantity }, { transaction: t });

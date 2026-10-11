@@ -178,11 +178,24 @@ const ProductDetailPage = () => {
 
   const selectedVariant = React.useMemo(() => {
     if (!product?.variants?.length) return product?.defaultVariant;
+    // Require ALL attribute axes to be selected before resolving a variant,
+    // otherwise a partial selection (e.g. only color, not size) would accidentally
+    // match the first variant that has that color, showing a potentially wrong price.
+    const allAxes = Object.keys(attributeOptions);
+    const allSelected = allAxes.length === 0 || allAxes.every((k) => selectedAttributes[k]);
+    if (!allSelected) return null; // signal: user hasn't finished selecting
     const match = product.variants.find((variant) =>
       Object.entries(selectedAttributes).every(([key, value]) => variant.attributes?.[key] === value)
     );
-    return match || product.defaultVariant;
-  }, [product, selectedAttributes]);
+    // Do NOT fall back to defaultVariant — a full selection with no match means
+    // this combination genuinely doesn't exist (no stock for Orange+128GB).
+    return match ?? null;
+  }, [product, selectedAttributes, attributeOptions]);
+
+  // Reset qty to 1 when the resolved variant changes (switching Red→Orange resets counter)
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedVariant?.id]);
 
   const hasMultipleVariants = (product?.variants?.length || 0) > 1;
 
@@ -207,8 +220,11 @@ const ProductDetailPage = () => {
     { id: "related", label: "RELATED PRODUCTS" },
   ];
 
+  const isVariantSelected = selectedVariant !== null;
+  const maxStock = selectedVariant?.quantity ?? 0;
+
   const handleQuantityChange = (action: string) => {
-    if (action === "increase") setQuantity((prev) => prev + 1);
+    if (action === "increase") setQuantity((prev) => Math.min(prev + 1, maxStock));
     else if (action === "decrease" && quantity > 1) setQuantity((prev) => prev - 1);
   };
 
@@ -709,25 +725,38 @@ const ProductDetailPage = () => {
 
             {/* Price */}
             <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-2xl sm:text-3xl font-bold text-red-600">
-                  {formatPrice(getPriceAsNumber(selectedVariant?.price ?? product.finalPrice) * quantity)}
-                </span>
-                {getPriceAsNumber(selectedVariant?.compareAtPrice) > getPriceAsNumber(selectedVariant?.price) && (
-                  <>
-                    <span className="text-base text-gray-500 line-through">
-                      {formatPrice(getPriceAsNumber(selectedVariant?.compareAtPrice) * quantity)}
-                    </span>
-                    <span className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                      -{calculateDiscount(selectedVariant?.compareAtPrice, selectedVariant?.price)}% OFF
-                    </span>
-                  </>
-                )}
-              </div>
-              {quantity > 1 && (
-                <p className="text-xs text-gray-500">
-                  {formatPrice(selectedVariant?.price ?? product.finalPrice)} each
-                </p>
+              {isVariantSelected ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-2xl sm:text-3xl font-bold text-red-600">
+                    {formatPrice(getPriceAsNumber(selectedVariant!.price) * quantity)}
+                  </span>
+                  {getPriceAsNumber(selectedVariant!.compareAtPrice) > getPriceAsNumber(selectedVariant!.price) && (
+                    <>
+                      <span className="text-base text-gray-500 line-through">
+                        {formatPrice(getPriceAsNumber(selectedVariant!.compareAtPrice) * quantity)}
+                      </span>
+                      <span className="bg-gradient-to-r from-red-600 to-red-700 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                        -{calculateDiscount(selectedVariant!.compareAtPrice, selectedVariant!.price)}% OFF
+                      </span>
+                    </>
+                  )}
+                  {quantity > 1 && (
+                    <p className="text-xs text-gray-500 w-full">
+                      {formatPrice(selectedVariant!.price)} each
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl sm:text-3xl font-bold text-gray-400">
+                    {product.priceRange?.min === product.priceRange?.max
+                      ? formatPrice(product.priceRange?.min ?? product.finalPrice)
+                      : `${formatPrice(product.priceRange?.min)} – ${formatPrice(product.priceRange?.max)}`}
+                  </span>
+                  <span className="text-sm text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                    Select options for exact price
+                  </span>
+                </div>
               )}
             </div>
 
@@ -738,8 +767,8 @@ const ProductDetailPage = () => {
             <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 font-medium">Availability</span>
-                <span className={`font-semibold ${(selectedVariant?.quantity ?? 0) > 0 ? "text-green-600" : "text-red-600"}`}>
-                  {(selectedVariant?.quantity ?? 0) > 0 ? "In Stock" : "Out of Stock"}
+                <span className={`font-semibold ${!isVariantSelected ? "text-gray-400" : maxStock > 0 ? "text-green-600" : "text-red-600"}`}>
+                  {!isVariantSelected ? "—" : maxStock > 0 ? `In Stock (${maxStock} available)` : "Out of Stock"}
                 </span>
               </div>
               {product.sku && (
@@ -771,7 +800,8 @@ const ProductDetailPage = () => {
                   </span>
                   <button
                     onClick={() => handleQuantityChange("increase")}
-                    className="p-2.5 hover:bg-gray-100 rounded-r-2xl transition-colors"
+                    disabled={quantity >= maxStock}
+                    className="p-2.5 hover:bg-gray-100 rounded-r-2xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-4 h-4 text-gray-600" />
                   </button>
@@ -783,9 +813,9 @@ const ProductDetailPage = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAddToCart}
-                  disabled={addingToCart || (selectedVariant?.quantity ?? 0) === 0}
+                  disabled={addingToCart || !isVariantSelected || maxStock === 0}
                   className={`flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3.5 rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-sm ${
-                    addingToCart || (selectedVariant?.quantity ?? 0) === 0 ? "opacity-75 cursor-not-allowed" : ""
+                    addingToCart || !isVariantSelected || maxStock === 0 ? "opacity-75 cursor-not-allowed" : ""
                   }`}
                 >
                   {addingToCart ? (
@@ -797,7 +827,7 @@ const ProductDetailPage = () => {
                   ) : (
                     <ShoppingCart className="w-4 h-4" />
                   )}
-                  {addingToCart ? "Adding..." : (selectedVariant?.quantity ?? 0) === 0 ? "Out of Stock" : "Add to Cart"}
+                  {addingToCart ? "Adding..." : !isVariantSelected ? "Select Options" : maxStock === 0 ? "Out of Stock" : "Add to Cart"}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
