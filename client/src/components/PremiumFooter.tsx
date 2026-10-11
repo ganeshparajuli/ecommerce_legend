@@ -610,15 +610,6 @@ const CompactFooter: React.FC = () => {
               © {new Date().getFullYear()} {displayStoreSettings.storeName} |
               All Rights Reserved
             </p>
-            <p>
-              Powered By{" "}
-              <Link
-                to="https://nyxis.tech"
-                className="text-white/70 font-semibold hover:text-white transition-colors"
-              >
-                Nyxis Tech
-              </Link>
-            </p>
           </div>
         </div>
       </div>
