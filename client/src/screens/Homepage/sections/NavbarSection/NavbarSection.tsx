@@ -800,12 +800,14 @@ export const NavbarSection: React.FC = () => {
                       src={displayStoreSettings.logo}
                       alt={displayStoreSettings.storeName || "Joy Store"}
                       className="h-9 sm:h-10 md:h-11 lg:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                      style={{ filter: "invert(1)" }}
                     />
                   ) : (
                     <img
                       src={joyStoreLogo}
                       alt={displayStoreSettings.storeName || "Joy Store"}
                       className="h-9 sm:h-10 md:h-11 lg:h-12 w-auto max-w-[160px] sm:max-w-[200px] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                      style={{ filter: "invert(1)" }}
                     />
                   )}
                   <span className="mt-1 text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-gray-400 font-medium select-none">

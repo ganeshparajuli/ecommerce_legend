@@ -226,6 +226,7 @@ const CompactFooter: React.FC = () => {
                 src={getImageUrl(displayStoreSettings.footerLogo)}
                 alt={`${displayStoreSettings.storeName} Logo`}
                 className="h-12 w-auto object-contain"
+                style={{ filter: "brightness(0) invert(1)" }}
               />
               <div className="mt-2 flex items-center gap-1.5">
                 <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-white/50 flex-shrink-0" fill="currentColor">
@@ -427,6 +428,7 @@ const CompactFooter: React.FC = () => {
                 src={getImageUrl(displayStoreSettings.footerLogo)}
                 alt={`${displayStoreSettings.storeName} Logo`}
                 className="h-11 w-auto object-contain mx-auto"
+                style={{ filter: "brightness(0) invert(1)" }}
               />
               <div className="mt-2 flex items-center justify-center gap-1.5">
                 <svg viewBox="0 0 16 16" className="w-3 h-3 text-white/50 flex-shrink-0" fill="currentColor">

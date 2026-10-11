@@ -134,6 +134,7 @@ interface ImageProps {
   src: ImageSource;
   alt?: string;
   className?: string;
+  style?: React.CSSProperties;
   index?: number;
   fallbackUrl?: string;
   onClick?: () => void;
@@ -146,6 +147,7 @@ export const Image: React.FC<ImageProps> = ({
   src,
   alt = "Image",
   className = "w-full h-auto",
+  style,
   index = 0,
   fallbackUrl = "/placeholder.jpg",
   onClick,
@@ -239,11 +241,12 @@ export const Image: React.FC<ImageProps> = ({
       src={currentSrc}
       alt={alt}
       className={className}
+      style={style}
       onClick={onClick}
       onError={handleError}
       onLoad={handleLoad}
-      loading="eager" // FIXED: Changed from lazy to eager for critical images like logos
-      key={imageUrl} // FIXED: Force re-render when URL changes
+      loading="eager"
+      key={imageUrl}
     />
   );
 };
