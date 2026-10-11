@@ -46,6 +46,9 @@ exports.login = asyncHandler(async (req, res) => {
 });
 
 exports.profile = asyncHandler(async (req, res) => {
+  const isSelf = req.user.id === req.params.id;
+  const isStaff = ["admin", "sub-admin", "sales"].includes(req.user.role);
+  if (!isSelf && !isStaff) throw new ApiError(403, "Not authorized");
   const user = await User.findByPk(req.params.id);
   if (!user) throw new ApiError(404, "User not found");
   sendSuccess(res, { message: "User fetched successfully", data: user.toSafeJSON() });
@@ -58,6 +61,9 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
 
 exports.updateImage = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, "No image provided");
+  const isSelf = req.user.id === req.params.id;
+  const isStaff = ["admin", "sub-admin"].includes(req.user.role);
+  if (!isSelf && !isStaff) throw new ApiError(403, "Not authorized");
   const user = await User.findByPk(req.params.id);
   if (!user) throw new ApiError(404, "User not found");
   await user.update({ image: `uploads/${req.file.filename}` });
@@ -101,10 +107,10 @@ exports.deleteUser = asyncHandler(async (req, res) => {
 });
 
 exports.changePassword = asyncHandler(async (req, res) => {
-  const { id, oldPassword, newPassword } = req.body;
-  requireFields(req.body, ["id", "oldPassword", "newPassword"]);
+  const { oldPassword, newPassword } = req.body;
+  requireFields(req.body, ["oldPassword", "newPassword"]);
 
-  const user = await User.findByPk(id);
+  const user = await User.findByPk(req.user.id);
   if (!user) throw new ApiError(404, "User not found");
 
   const isMatch = await user.validatePassword(oldPassword);
@@ -115,10 +121,10 @@ exports.changePassword = asyncHandler(async (req, res) => {
 });
 
 exports.resetPassword = asyncHandler(async (req, res) => {
-  const { id, newPassword } = req.body;
-  requireFields(req.body, ["id", "newPassword"]);
+  const { newPassword } = req.body;
+  requireFields(req.body, ["newPassword"]);
 
-  const user = await User.findByPk(id);
+  const user = await User.findByPk(req.params.id);
   if (!user) throw new ApiError(404, "User not found");
 
   await user.update({ password: newPassword });

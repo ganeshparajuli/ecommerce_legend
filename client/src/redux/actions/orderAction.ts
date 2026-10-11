@@ -1,4 +1,3 @@
-import { orderReducer } from './../reducers/orderReducer';
 // src/actions/orderAction.ts
 import {
   CreateOrder,
@@ -19,17 +18,6 @@ import { clearCart } from "./cartAction";
 // Helper function to extract error message
 const getErrorMessage = (error: any): string => {
   return error.response?.data?.message || error.message || "An error occurred";
-};
-
-// CRITICAL: Helper function to safely clone any data before dispatching
-const safeClone = (data: any): any => {
-  if (data === null || data === undefined) return data;
-  try {
-    return JSON.parse(JSON.stringify(data));
-  } catch (error) {
-    console.error("Failed to clone data:", error);
-    return data;
-  }
 };
 
 // Order data interface - matches the backend contract exactly. Price/total/discount are
@@ -92,19 +80,8 @@ export const createOrder = (orderData: OrderData) => async (dispatch: Dispatch):
 export const myOrders = (id: string) => async (dispatch: Dispatch): Promise<void> => {
   try {
     dispatch({ type: MyOrders.Request });
-    const token = localStorage.getItem("token");
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-    const { data } = await api.get(`order/user/${id}`, config);
-
-    // CRITICAL FIX: Deep clone the orders data before dispatching
-    dispatch({
-      type: MyOrders.Success,
-      payload: safeClone(data.data),
-    });
+    const { data } = await api.get(`order/user/${id}`);
+    dispatch({ type: MyOrders.Success, payload: data.data });
   } catch (error) {
     dispatch({
       type: MyOrders.Fail,
@@ -117,21 +94,7 @@ export const myOrders = (id: string) => async (dispatch: Dispatch): Promise<void
 export const getOrderDetails = (id: string) => async (dispatch: Dispatch): Promise<void> => {
   try {
     dispatch({ type: OrderDetails.Request });
-
-    const token = localStorage.getItem("token");
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-
-    console.log("Fetching orders for user ID:", id);
-
-    // Try multiple approaches to get the user ID
-    
-    let link = `/order/${id}`;
-    // Make the API call with the user ID (even if undefined)
-    const {data} = await api.get(link, config);
+    const {data} = await api.get(`order/${id}`);
 
 
     dispatch({
@@ -152,7 +115,7 @@ export const getAllOrders = () => async (dispatch: Dispatch): Promise<void> => {
   try {
     dispatch({ type: AllOrders.Request });
 
-    const { data } = await api.get("/order/");
+    const { data } = await api.get("order/");
 
     dispatch({
       type: AllOrders.Success,
@@ -217,8 +180,7 @@ export const cancelOrder = (orderId: string) => async (dispatch: Dispatch): Prom
       payload: data,
     });
 
-    // Refresh the orders list to show updated status
-    dispatch(getOrderDetails());
+    dispatch(getOrderDetails(orderId));
   } catch (error) {
     console.error("Error cancelling order:", error);
     dispatch({

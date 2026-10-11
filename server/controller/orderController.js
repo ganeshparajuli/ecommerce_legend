@@ -110,7 +110,7 @@ exports.getOrderById = asyncHandler(async (req, res) => {
 });
 
 exports.getUserOrders = asyncHandler(async (req, res) => {
-  const targetUserId = req.params.userId === "undefined" ? req.user.id : req.params.userId;
+  const targetUserId = req.params.userId || req.user.id;
   if (req.user.id !== targetUserId && !STAFF_ROLES.includes(req.user.role)) {
     throw new ApiError(403, "Unauthorized to view these orders");
   }

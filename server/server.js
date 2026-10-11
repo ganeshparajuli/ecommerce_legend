@@ -65,8 +65,8 @@ server.use(
   })
 );
 
-server.use(express.json({ limit: "50mb" }));
-server.use(express.urlencoded({ extended: true, limit: "50mb" }));
+server.use(express.json({ limit: "1mb" }));
+server.use(express.urlencoded({ extended: true, limit: "1mb" }));
 server.use(cookieParser());
 server.use(morgan("tiny"));
 

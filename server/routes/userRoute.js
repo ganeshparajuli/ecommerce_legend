@@ -36,6 +36,15 @@ router.post(
 
 router.put("/:id", isAuthenticated, userController.updateProfile);
 
+router.post("/change-password", isAuthenticated, userController.changePassword);
+
+router.put(
+  "/reset-password/:id",
+  isAuthenticated,
+  authorizeRoles("admin", "sub-admin"),
+  userController.resetPassword
+);
+
 router.delete(
   "/:id",
   isAuthenticated,
@@ -45,6 +54,7 @@ router.delete(
 
 router.put(
   "/update-image/:id",
+  isAuthenticated,
   upload.single("image"),
   userController.updateImage
 );
